@@ -101,6 +101,7 @@ def _call_llm(provider: str, api_key: str, api_base: str | None, model: str, mes
         resp = client.chat.completions.create(
             model=model, messages=messages,
             response_format={"type": "json_object"},
+            temperature=0.2,
             timeout=300,
             max_tokens=16384,
         )
