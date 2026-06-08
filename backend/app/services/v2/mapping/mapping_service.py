@@ -35,6 +35,14 @@ class MappingService:
         mapping = self._db.query(OntologyMapping).filter(OntologyMapping.id == mapping_id).first()
         if not mapping:
             raise ValueError(f"Mapping {mapping_id} not found")
+        # PRD: Auto-infer Property Mapping from columns
+        if data and len((mapping.field_mapping or {}).keys()) <= 1:
+            inferred = dict(mapping.field_mapping or {})
+            for col in data[0].keys():
+                if col not in inferred:
+                    inferred[col] = col
+            mapping.field_mapping = inferred
+            self._db.commit()
         entities = self._rows_to_entities(mapping, data)
         neo4j_count = self._write_neo4j(mapping.entity_class, entities)
         v1_count = self._write_v1_entities(mapping, entities)
@@ -67,11 +75,38 @@ class MappingService:
                 logger.warning(f"读取数据集 {m.curated_dataset_id} 失败: {e}")
                 continue
 
+            # PRD: Auto-infer Property Mapping from columns if not set
+            if rows and len((m.field_mapping or {}).keys()) <= 1:
+                sample = rows[0]
+                inferred_fm = dict(m.field_mapping or {})
+                for col in list(sample.keys()):
+                    if col not in inferred_fm:
+                        # Auto-infer type and create property name
+                        val = sample[col]
+                        ptype = 'string'
+                        if isinstance(val, (int, float)) and not isinstance(val, bool):
+                            ptype = 'number'
+                        elif isinstance(val, str):
+                            if any(kw in col for kw in ('date','time','日期','时间','created','updated')):
+                                ptype = 'timestamp'
+                        inferred_fm[col] = col  # PRD: column name → property name
+                m.field_mapping = inferred_fm
+                self._db.commit()
+
             entities = self._rows_to_entities(m, rows)
             neo4j_count = self._write_neo4j(m.entity_class, entities)
             v1_count = self._write_v1_entities(m, entities)
 
             pk_col = (m.field_mapping or {}).get("__primary_key__")
+            # 如果 PK 列不存在，自动使用第一个列（或包含 id 的列）
+            if not pk_col or (rows and pk_col not in rows[0]):
+                if rows:
+                    cols = list(rows[0].keys())
+                    # 优先找含 id 的列
+                    id_cols = [c for c in cols if 'id' in c.lower() and c.lower() != 'width']
+                    pk_col = id_cols[0] if id_cols else cols[0]
+                else:
+                    pk_col = pk_col or "id"
             entity_id_map = {
                 str(row.get(pk_col, "")) if pk_col else "": e["id"]
                 for row, e in zip(rows, entities)
@@ -90,6 +125,10 @@ class MappingService:
         # Phase 2: Relation 推断
         relation_results = self._infer_and_write_relations(ontology_id, mappings, mapping_meta)
 
+        # Phase 2b: Link Mapping 处理（手动配置的跨表关系）
+        link_results = self._process_link_mappings(ontology_id, mapping_meta)
+        relation_results.extend(link_results)
+
         # Phase 3: 写入 ChromaDB
         chroma_count = 0
         try:
@@ -103,7 +142,7 @@ class MappingService:
                 for row, eid in zip(meta["rows"], meta.get("entity_id_map", {}).values()):
                     all_entities.append({"id": eid, "type": m.entity_class, "properties": row})
             if all_entities:
-                chroma.sync_entities(ontology_id, all_entities)
+                chroma.upsert_entities(ontology_id, all_entities)
                 chroma_count = len(all_entities)
         except Exception as e:
             logger.warning(f"ChromaDB 写入失败（非致命）: {e}")
@@ -240,8 +279,8 @@ class MappingService:
                 Relation.ontology_id == ontology_id, Relation.type == rel_type,
             ).all()
             for r in rels:
-                neo.upsert_relation("OntologyEntity", r.source_entity,
-                                    "OntologyEntity", r.target_entity, rel_type,
+                neo.upsert_relation(src_class, r.source_entity,
+                                    tgt_class, r.target_entity, rel_type,
                                     props={"ontology_id": ontology_id, "confidence": r.confidence})
             neo.close()
         except Exception as e:
@@ -249,9 +288,8 @@ class MappingService:
 
     # ── FK 检测（4 级策略）─────────────────────────────────────────
 
-    @staticmethod
     def _detect_fk_columns(
-        src_cols: list[str], tgt_entity_class: str, tgt_dataset_name: str,
+        self, src_cols: list[str], tgt_entity_class: str, tgt_dataset_name: str,
         src_sample_rows: list[dict] | None = None,
     ) -> list[tuple[str, str]]:
         """多级 FK 检测: 1)标准_id 2)语义词 3)值模式 4)LLM"""
@@ -295,6 +333,14 @@ class MappingService:
                         rel_type = f"HAS_{max(set(prefixes), key=prefixes.count)}"
                         candidates.append((col, rel_type))
 
+        # 策略 4: LLM 辅助语义 FK 检测（前面策略没匹配时触发）
+        if not candidates and src_cols:
+            try:
+                llm_candidates = self._llm_detect_fk(src_cols, tgt_entity_class, tgt_dataset_name)
+                candidates.extend(llm_candidates)
+            except Exception:
+                pass
+
         return candidates
 
     def _llm_detect_fk(self, src_cols: list[str], tgt_entity_class: str, tgt_dataset_name: str) -> list[tuple[str, str]]:
@@ -337,3 +383,48 @@ class MappingService:
             return []
         except Exception:
             return []
+    # ── Link Mapping 处理 ──
+
+    def _process_link_mappings(self, ontology_id: str, mapping_meta: dict) -> list[dict]:
+        from app.models.v2.mapping import OntologyLinkMapping, OntologyMapping as OM
+        from app.models.relation import Relation
+
+        links = self._db.query(OntologyLinkMapping).filter(
+            OntologyLinkMapping.ontology_id == ontology_id,
+            OntologyLinkMapping.status == "active",
+        ).all()
+        results = []
+        for link in links:
+            src_meta = tgt_meta = None
+            for mid, meta in mapping_meta.items():
+                m = self._db.query(OM).filter(OM.id == mid).first()
+                if not m: continue
+                if m.curated_dataset_id == link.src_dataset_id: src_meta = meta
+                if m.curated_dataset_id == link.tgt_dataset_id: tgt_meta = meta
+            if not src_meta or not tgt_meta: continue
+            tgt_val_to_eid = {}
+            for row, (pk_val, eid) in zip(tgt_meta["rows"], tgt_meta["entity_id_map"].items()):
+                v = str(row.get(link.tgt_key, "")).strip()
+                if v: tgt_val_to_eid[v] = eid
+            written = 0
+            for row, (src_pk_val, src_eid) in zip(src_meta["rows"], src_meta["entity_id_map"].items()):
+                src_val = str(row.get(link.src_key, "")).strip()
+                if not src_val or not src_eid: continue
+                tgt_eid = tgt_val_to_eid.get(src_val)
+                if not tgt_eid: continue
+                rel = Relation(
+                    id=str(_uuid.uuid4()), ontology_id=ontology_id,
+                    source_entity=src_eid, target_entity=tgt_eid,
+                    type=link.relation_type,
+                    properties={"mapping_type": "link_mapping", "src_key": link.src_key, "tgt_key": link.tgt_key},
+                    confidence=0.9,
+                )
+                self._db.merge(rel); written += 1
+            if written:
+                self._db.commit()
+                self._write_neo4j_relations(ontology_id, src_meta["entity_class"], tgt_meta["entity_class"], link.relation_type)
+                results.append({"src": src_meta["entity_class"], "tgt": tgt_meta["entity_class"],
+                                "rel_type": link.relation_type, "src_key": link.src_key, "tgt_key": link.tgt_key,
+                                "count": written})
+                logger.info("Link: " + src_meta["entity_class"] + "-[" + str(link.relation_type) + "]->" + tgt_meta["entity_class"] + " " + str(written) + "条")
+        return results

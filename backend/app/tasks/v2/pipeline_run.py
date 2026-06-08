@@ -87,7 +87,44 @@ def pipeline_run_task(pipeline_id: str, run_id: str):
 
         # ── 按 DAG 执行计划分阶段执行 ────────────────────────────
         svc = DatasetService(db)
-        data = svc.preview(pl.source_dataset_id, 1, limit=10000)
+
+        # Auto-detect source_dataset_id from Connector node if not set
+        source_ds_id = pl.source_dataset_id
+        if not source_ds_id and definition:
+            for node in (definition.get("nodes") or []):
+                if node.get("type") == "connector":
+                    files = (node.get("config") or {}).get("files", [])
+                    if files:
+                        fname = files[0].get("name", "")
+                        from app.models.v2.dataset import Dataset as Ds2
+                        candidates = db.query(Ds2).filter(
+                            Ds2.name == fname.rsplit(".", 1)[0]
+                        ).order_by(Ds2.created_at.desc()).limit(10).all()
+                        for c in candidates:
+                            from app.models.v2.dataset import DatasetVersion
+                            ver = db.query(DatasetVersion).filter(
+                                DatasetVersion.dataset_id == c.id
+                            ).order_by(DatasetVersion.version_no.desc()).first()
+                            if ver and (ver.rowcount or 0) > 0:
+                                source_ds_id = c.id
+                                break
+                        if not source_ds_id and candidates:
+                            source_ds_id = candidates[0].id
+                        break
+
+        # Save auto-detected source to Pipeline object
+        if source_ds_id and not pl.source_dataset_id:
+            pl.source_dataset_id = source_ds_id
+            db.commit()
+
+        data = svc.preview(source_ds_id, 1, limit=10000) if source_ds_id else []
+
+        # Auto-detect route from dataset kind
+        if source_ds_id and pl.route not in ("C", "B"):
+            from app.models.v2.dataset import Dataset as Ds3
+            src_ds = db.query(Ds3).filter(Ds3.id == source_ds_id).first()
+            if src_ds and src_ds.kind == "unstructured":
+                pl.route = "C"
 
         # Route C 特殊处理
         if not plan["phases"]:
@@ -119,6 +156,26 @@ def pipeline_run_task(pipeline_id: str, run_id: str):
                         except Exception:
                             combined = ""
                     data = [{"markdown_text": combined, "filename": source_ds.name}]
+
+        # Route C 文本提取 (在所有路径上执行)
+        if source_ds_id and pl.route == "C" and (not data or "markdown_text" not in (data[0] if data else {})):
+            try:
+                from app.models.v2.dataset import DatasetVersion
+                ver = db.query(DatasetVersion).filter(
+                    DatasetVersion.dataset_id == source_ds_id, DatasetVersion.version_no == 1,
+                ).first()
+                if ver and ver.storage_uri:
+                    raw_bytes = svc._storage.get_object(ver.storage_uri)
+                    try:
+                        from markitdown import MarkItDown
+                        md = MarkItDown()
+                        result = md.convert(raw_bytes)
+                        text = str(result)
+                    except:
+                        text = raw_bytes.decode("utf-8", errors="replace")
+                    data = [{"markdown_text": text, "filename": pl.name}]
+            except Exception as e:
+                logger.warning(f"Route C text extraction failed: {e}")
 
         elif plan["linear"]:
             # 线性执行：按阶段顺序执行

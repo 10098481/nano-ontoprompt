@@ -82,6 +82,7 @@ export default function LogicTab({ ontologyId }: { ontologyId: string }) {
                 <th className="px-4 py-3 text-left text-gray-500 text-xs font-medium">公式</th>
                 <th className="px-4 py-3 text-left text-gray-500 text-xs font-medium">描述</th>
                 <th className="px-4 py-3 text-left text-gray-500 text-xs font-medium">类型</th>
+                <th className="px-4 py-3 text-left text-gray-500 text-xs font-medium">关联实体</th>
                 <th className="px-4 py-3 text-left text-gray-500 text-xs font-medium">状态</th>
                 <th className="px-4 py-3 text-left text-gray-500 text-xs font-medium">置信度</th>
                 <th className="px-4 py-3 text-center text-gray-500 text-xs font-medium">启用</th>
@@ -94,6 +95,11 @@ export default function LogicTab({ ontologyId }: { ontologyId: string }) {
                   <td className="px-4 py-3 font-medium">{r.name_cn}</td>
                   <td className="px-4 py-3 font-mono text-xs text-gray-600 max-w-xs truncate">{r.formula || '—'}</td>
                   <td className="px-4 py-3 text-gray-500 max-w-xs truncate">{r.description || '—'}</td>
+                  <td className="px-4 py-3">
+                    {(typeof r.linked_entities === 'string' ? (() => { try {{ return JSON.parse(r.linked_entities || '[]'); }} catch {{ return []; }} })() : (r.linked_entities || [])).map((e: string) => (
+                      <span key={e} className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{e}</span>
+                    ))}
+                  </td>
                   <td className="px-4 py-3">
                     <span className="text-xs px-1.5 py-0.5 rounded border bg-gray-50 text-gray-600">{r.logic_type || '—'}</span>
                   </td>

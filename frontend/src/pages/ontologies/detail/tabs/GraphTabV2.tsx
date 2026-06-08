@@ -40,14 +40,14 @@ export default function GraphTabV2({ ontologyId }: { ontologyId: string }) {
 
   const [graphData, setGraphData] = useState<GraphData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [hideIsolated, setHideIsolated] = useState(false)
+  const [hideIsolated, setHideIsolated] = useState(true)
   const [queryMode, setQueryMode] = useState<QueryMode>('natural')
   const [query, setQuery] = useState('')
   const [queryLoading, setQueryLoading] = useState(false)
   const [queryResult, setQueryResult] = useState<unknown[]>([])
 
   useEffect(() => {
-    apiClientV2.get(`/ontologies/${ontologyId}/graph?limit=200`)
+    apiClientV2.get(`/ontologies/${ontologyId}/graph?limit=300`)
       .then((res: any) => setGraphData(res))
       .catch(() => setGraphData({ nodes: [], edges: [], neo4j_available: false }))
       .finally(() => setLoading(false))
@@ -172,13 +172,14 @@ export default function GraphTabV2({ ontologyId }: { ontologyId: string }) {
         },
       ],
       layout: {
-        name: 'cose',
+        name: cytoscapeEdges.length > 0 ? 'breadthfirst' : 'cose',
         animate: false,
-        nodeRepulsion: () => 8000,
-        idealEdgeLength: () => 120,
-        gravity: 0.05,
-        numIter: 1000,
-        nodeDimensionsIncludeLabels: true,
+        directed: true,
+        spacingFactor: 1.3,
+        ...(cytoscapeEdges.length > 0 ? {} : {
+          nodeRepulsion: () => 8000, idealEdgeLength: () => 120,
+          gravity: 0.05, numIter: 1000, nodeDimensionsIncludeLabels: true,
+        }),
       } as any,
     })
 

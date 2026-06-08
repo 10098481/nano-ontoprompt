@@ -109,53 +109,58 @@ class Neo4jService:
 
     def get_graph_data(self, ontology_id: str, limit: int = 200,
                        label_filter: str | None = None) -> dict:
-        """그래프 시각화용 노드/엣지 데이터 반환"""
+        """그래프 시각화용 노드/엣지 데이터 반환 (分两步查询避免 LIMIT 吞掉边)"""
         if not self._available:
             return {"nodes": [], "edges": []}
 
         label_clause = f":{label_filter}" if label_filter else ""
-        query = f"""
-        MATCH (n{label_clause})
-        WHERE n.ontology_id = $ontology_id
-        OPTIONAL MATCH (n)-[r]->(m)
-        WHERE m.ontology_id = $ontology_id
-        RETURN n, r, m
-        LIMIT $limit
-        """
-        nodes_map = {}
-        edges = []
 
         with self._driver.session() as session:
-            result = session.run(query, ontology_id=ontology_id, limit=limit)
-            for record in result:
-                n = record.get("n")
-                r = record.get("r")
-                m = record.get("m")
+            # Step 1: 获取节点
+            node_query = f"""
+            MATCH (n{label_clause})
+            WHERE n.ontology_id = $ontology_id
+            RETURN n
+            LIMIT $limit
+            """
+            nodes_map = {}
+            node_result = session.run(node_query, ontology_id=ontology_id, limit=limit)
+            for record in node_result:
+                nd = record.get("n")
+                if nd:
+                    nid = nd.element_id
+                    nodes_map[nid] = {"id": nid, "labels": list(nd.labels), "properties": dict(nd)}
 
-                if n:
-                    nid = n.element_id
-                    if nid not in nodes_map:
-                        nodes_map[nid] = {
-                            "id": nid,
-                            "labels": list(n.labels),
-                            "properties": dict(n),
-                        }
-                if m:
-                    mid = m.element_id
-                    if mid not in nodes_map:
-                        nodes_map[mid] = {
-                            "id": mid,
-                            "labels": list(m.labels),
-                            "properties": dict(m),
-                        }
-                if r:
-                    edges.append({
-                        "id": r.element_id,
-                        "source": r.start_node.element_id,
-                        "target": r.end_node.element_id,
-                        "type": r.type,
-                        "properties": dict(r),
-                    })
+            # Step 2: 获取这些节点之间的边
+            if nodes_map:
+                edge_query = """
+                MATCH (n)-[r]->(m)
+                WHERE n.ontology_id = $ontology_id AND m.ontology_id = $ontology_id
+                RETURN r, n, m
+                LIMIT 1000
+                """
+                edges = []
+                node_id_set = set(nodes_map.keys())
+                edge_result = session.run(edge_query, ontology_id=ontology_id)
+                for record in edge_result:
+                    r = record.get("r")
+                    n2 = record.get("n")
+                    m2 = record.get("m")
+                    if r and n2 and m2:
+                        if n2.element_id in node_id_set or m2.element_id in node_id_set:
+                            if n2.element_id not in nodes_map:
+                                nodes_map[n2.element_id] = {"id": n2.element_id, "labels": list(n2.labels), "properties": dict(n2)}
+                            if m2.element_id not in nodes_map:
+                                nodes_map[m2.element_id] = {"id": m2.element_id, "labels": list(m2.labels), "properties": dict(m2)}
+                            edges.append({
+                                "id": r.element_id,
+                                "source": r.start_node.element_id,
+                                "target": r.end_node.element_id,
+                                "type": r.type,
+                                "properties": dict(r),
+                            })
+            else:
+                edges = []
 
         return {"nodes": list(nodes_map.values()), "edges": edges}
 

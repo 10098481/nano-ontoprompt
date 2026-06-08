@@ -116,13 +116,33 @@ def discover_logic_rules(ontology_id: str, db: Session = Depends(get_db)):
                     description=f"Entity Mapping: {m.entity_class}",
                     formula=f"mapping:{m.entity_class}", confidence=0.85,
                     enabled=True, status="draft",
+                    linked_entities=[m.entity_class],
                 ))
             created.append(name)
+    # PRD ④: 额外发现 Quality/Validation/State/Security/Automation 规则
+    quality_rules = [
+        ("Validation: 数据完整性检查", "validation", "完整性: 检查必填字段和 null 率", 0.8),
+        ("Quality: 数据质量监控", "validation", "质量: 监控重复率和异常值", 0.75),
+        ("Business: 业务规则推导", "business", "业务: 基于领域知识的业务规则", 0.7),
+        ("Inference: 图推导关系", "inference", "推导: 基于实体关系推导隐含关联", 0.7),
+        ("State: 状态流转规则", "state", "状态: 数据状态流转和审核流程", 0.75),
+        ("Security: 访问控制", "security", "安全: 基于角色限制读写权限", 0.85),
+        ("Automation: 自动同步触发", "automation", "自动化: Curated 审批通过后触发增量更新", 0.9),
+    ]
+    for qname, qtype, qdesc, qconf in quality_rules:
+        if not db.query(LogicRuleV1).filter(
+            LogicRuleV1.ontology_id == ontology_id, LogicRuleV1.name_cn == qname,
+        ).first():
+            db.add(LogicRuleV1(
+                id=str(uuid.uuid4()), ontology_id=ontology_id,
+                name_cn=qname, name_en=qname.replace(": ", "_"),
+                description=qdesc, formula=qtype, confidence=qconf,
+                enabled=True, status="draft",
+            ))
     db.commit()
-    return {"discovered": len(created), "total_v2": db.query(OntologyLogicRule).filter(
-        OntologyLogicRule.ontology_id == ontology_id).count(),
-            "total_v1": db.query(LogicRuleV1).filter(
-        LogicRuleV1.ontology_id == ontology_id).count()}
+    total_v1 = db.query(LogicRuleV1).filter(LogicRuleV1.ontology_id == ontology_id).count()
+    total_v2 = db.query(OntologyLogicRule).filter(OntologyLogicRule.ontology_id == ontology_id).count()
+    return {"discovered": len(created), "total_v2": total_v2, "total_v1": total_v1}
 
 
 # ── State Machines ──────────────────────────────────────────────
@@ -206,12 +226,30 @@ def discover_actions(ontology_id: str, db: Session = Depends(get_db)):
                     name_cn=name, name_en=name,
                     description=f"创建 {m.entity_class}", confidence=0.85,
                     enabled=True, status="draft",
+                    linked_entities=[m.entity_class],
                 ))
             created.append(name)
+    # PRD ⑤: Review/Repair 动作类型
+    for aname, acat, adesc, aconf in [
+        ("Link: 关系维护", "link", "维护实体间的关系链接", 0.8),
+        ("State: 状态流转", "state_transition", "执行实体状态迁移操作", 0.8),
+        ("Review: 人工审核确认", "review", "对 pending_review 数据进行人工审核", 0.85),
+        ("Repair: 数据质量修复", "repair", "修复质量报告中标记的异常数据", 0.75),
+        ("Writeback: 外部写回", "writeback", "将审核通过的数据写回外部系统", 0.7),
+    ]:
+        if not db.query(ActionV1).filter(
+            ActionV1.ontology_id == ontology_id, ActionV1.name_cn == aname,
+        ).first():
+            db.add(ActionV1(
+                id=str(uuid.uuid4()), ontology_id=ontology_id,
+                name_cn=aname, name_en=aname.replace(": ","_"),
+                description=adesc, confidence=aconf,
+                enabled=True, status="draft",
+            ))
     db.commit()
-    return {"discovered": len(created),
-            "total_v2": db.query(OntologyActionType).filter(OntologyActionType.ontology_id == ontology_id).count(),
-            "total_v1": db.query(ActionV1).filter(ActionV1.ontology_id == ontology_id).count()}
+    tv1 = db.query(ActionV1).filter(ActionV1.ontology_id == ontology_id).count()
+    tv2 = db.query(OntologyActionType).filter(OntologyActionType.ontology_id == ontology_id).count()
+    return {"discovered": len(created), "total_v2": tv2, "total_v1": tv1}
 
 
 @router.delete("/{ontology_id}/actions/{action_id}")

@@ -87,7 +87,7 @@ export default function OntologyCreateWizard() {
       if (!ds) continue
       try {
         const res: any = await apiClient.post(`/api/v2/ontologies/${createdOntologyId}/mappings/suggest`, {
-          dataset_name: ds.name, columns: [], sample_rows: [], ontology_domain: domain,
+          dataset_name: ds.name, columns: ds.columns || [], sample_rows: ds.sample_rows || [], ontology_domain: domain,
         })
         next[dsId] = res
       } catch {
