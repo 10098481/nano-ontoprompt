@@ -114,11 +114,12 @@ print("✓ Created logic rules")
 print(f"\n📊 Ontology ID: {oid}")
 print(f"   Open: http://localhost:5173/ontologies/{oid}")
 
-# ── Register DeepSeek model ────────────────────────────────────────────────
+# ── Register DeepSeek model (API key 从环境变量读取, 不要硬编码) ──────────
+import os
 r = requests.post(f"{BASE}/models", json={
     "name": "DeepSeek V4 Flash",
     "provider": "compatible",
-    "api_key": "sk-e3fc16893d1c49699caf123cd2380034",
+    "api_key": os.getenv("DEEPSEEK_API_KEY", ""),
     "api_base": "https://api.deepseek.com/v1",
     "models": ["deepseek-chat", "deepseek-v4-flash", "deepseek-reasoner"],
 }, headers=H)

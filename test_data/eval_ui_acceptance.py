@@ -19,7 +19,13 @@ pls = s.get(f"{API}/api/v2/pipelines").json()
 if isinstance(pls, dict):
     pls = pls.get("data", pls.get("items", []))
 pl = pls[0]
-oid = "d39d2ae2-c799-4608-afea-157492e122d3"
+# 动态取第一个 ontology
+ontos = s.get(f"{API}/api/v1/ontologies").json()
+ontos = ontos.get("data", ontos)
+if isinstance(ontos, dict):
+    ontos = ontos.get("items", [])
+oid = ontos[0]["id"]
+print(f"ontology: {oid[:8]} {ontos[0].get('name')}")
 print(f"pipeline: {pl['id'][:8]} {pl.get('name')}")
 
 results = []
