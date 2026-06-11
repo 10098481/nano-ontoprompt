@@ -189,13 +189,7 @@ class MappingService:
                     tgt_pk_values=tgt_pk_values,
                 )
 
-                # 跨数据集备用键推断 (PRD §2.4 ③): 目标近唯一非主键列的值重叠
-                fk_cols_used = {c for c, _ in fk_candidates}
-                results.extend(self._infer_alt_key_relations(
-                    ontology_id, src_m, src_meta, tgt_m, tgt_meta,
-                    skip_src_cols=fk_cols_used, link_model=OntologyLinkMapping,
-                ))
-
+                fk_cols_linked: set[str] = set()
                 for fk_col, rel_type in fk_candidates:
                     written = 0
                     src_values: list[str] = []
@@ -236,6 +230,7 @@ class MappingService:
                         tgt_values.append(tgt_eid)
                         written += 1
                     if written:
+                        fk_cols_linked.add(fk_col)
                         cardinality = self._infer_cardinality(src_values, tgt_values)
                         inferred_link = self._upsert_inferred_link_mapping(
                             ontology_id=ontology_id,
@@ -261,6 +256,13 @@ class MappingService:
                                         "cardinality": cardinality,
                                         "link_mapping_id": inferred_link.id if inferred_link else None,
                                         "link_mapping_status": inferred_link.status if inferred_link else None})
+
+                # 跨数据集备用键推断 (PRD §2.4 ③): 只跳过 FK 已实际产出链接的列,
+                # 列名疑似 FK 但值匹配不上主键的列仍可走备用键(如 mentioned_supplier 存公司名)
+                results.extend(self._infer_alt_key_relations(
+                    ontology_id, src_m, src_meta, tgt_m, tgt_meta,
+                    skip_src_cols=fk_cols_linked, link_model=OntologyLinkMapping,
+                ))
         return results
 
     # ── 跨数据集备用键推断 (PRD §2.4 ③ "跨数据集关系推断") ──────────────
@@ -786,6 +788,8 @@ class MappingService:
                          severity: str = "info") -> bool:
         from app.models.v2.logic import OntologyLogicRule
 
+        # session 为 autoflush=False, 先 flush 让同一次运行中已 add 的同名规则可见
+        self._db.flush()
         exists = self._db.query(OntologyLogicRule).filter(
             OntologyLogicRule.ontology_id == ontology_id,
             OntologyLogicRule.name == name,
@@ -816,6 +820,7 @@ class MappingService:
                          linked_entities: list[str] | None = None, confidence: float = 0.85) -> bool:
         from app.models.logic import LogicRule
 
+        self._db.flush()
         exists = self._db.query(LogicRule).filter(
             LogicRule.ontology_id == ontology_id,
             LogicRule.name_cn == name,
@@ -958,6 +963,7 @@ class MappingService:
                           criteria: list | None = None) -> bool:
         from app.models.v2.action import OntologyActionType
 
+        self._db.flush()
         exists = self._db.query(OntologyActionType).filter(
             OntologyActionType.ontology_id == ontology_id,
             OntologyActionType.name == name,
@@ -990,6 +996,7 @@ class MappingService:
                           confidence: float = 0.82) -> bool:
         from app.models.action import Action
 
+        self._db.flush()
         exists = self._db.query(Action).filter(
             Action.ontology_id == ontology_id,
             Action.name_cn == name,

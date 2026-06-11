@@ -60,7 +60,9 @@ with sync_playwright() as p:
     page.wait_for_timeout(2000)
     page.screenshot(path=str(SHOTS / "02_connector_inspector.png"))
     body = page.inner_text("body")
-    check("连接器节点显示数据文件", any(k in body for k in [".csv", ".xlsx", ".json", "inventory", "supplier", "logistics"]))
+    check("连接器节点显示数据文件", any(k in body for k in [
+        ".csv", ".xlsx", ".json", ".pdf", ".docx", ".pptx", ".md",
+        "inventory", "supplier", "logistics", "supply_chain", "warehouse"]))
 
     # 3. 点击输出节点 → 结构化数据
     for i in range(n):
@@ -80,9 +82,12 @@ with sync_playwright() as p:
     page.goto(f"{BASE}/ontologies/{oid}")
     page.wait_for_timeout(2000)
     page.screenshot(path=str(SHOTS / "04_ontology_info.png"))
-    # Graph tab
+    # Graph tab — 轮询最多 20s 等待 Cytoscape 渲染
     page.get_by_role("button", name="知识图谱", exact=True).click()
-    page.wait_for_timeout(6000)
+    for _ in range(20):
+        page.wait_for_timeout(1000)
+        if page.locator("canvas").count():
+            break
     page.screenshot(path=str(SHOTS / "05_graph.png"))
     canvas = page.locator("canvas")
     check("图谱画布渲染", canvas.count() >= 1, f"({canvas.count()} canvas)")

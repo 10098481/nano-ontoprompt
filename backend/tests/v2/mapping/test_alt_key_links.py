@@ -42,10 +42,14 @@ def test_alt_key_relation_via_document_mentions(db, admin_user):
             {"供应商ID": "SUP003", "供应商名称": "聚合包装集团"},
         ],
         ds_doc.id: [
+            # mentioned_supplier 与 organizations 双列命中同一目标 → 产生同名
+            # Inference Rule, 回归覆盖 autoflush=False 下的重复 INSERT 崩溃
             {"doc_id": "D1", "section": "供应商分级",
-             "organizations": "天钢原材料有限公司, 芯联电子科技"},
-            {"doc_id": "D2", "section": "风险条款", "organizations": "聚合包装集团"},
-            {"doc_id": "D3", "section": "无关章节", "organizations": ""},
+             "organizations": "天钢原材料有限公司, 芯联电子科技",
+             "mentioned_supplier": "天钢原材料有限公司"},
+            {"doc_id": "D2", "section": "风险条款", "organizations": "聚合包装集团",
+             "mentioned_supplier": "芯联电子科技"},
+            {"doc_id": "D3", "section": "无关章节", "organizations": "", "mentioned_supplier": ""},
         ],
     }
     for ds, cls, pk in [(ds_sup, "Supplier", "供应商ID"), (ds_doc, "StrategyClause", "doc_id")]:
@@ -62,11 +66,12 @@ def test_alt_key_relation_via_document_mentions(db, admin_user):
          patch.object(MappingService, "_write_neo4j_relations", return_value=None), \
          patch("app.services.v2.vector.chroma_service.ChromaService.upsert_entities", return_value=None):
         svc.build_all(onto.id)
+        svc.build_all(onto.id)  # 幂等性: 重跑不应崩溃
 
     rels = db.query(Relation).filter(Relation.ontology_id == onto.id,
                                      Relation.type == "HAS_SUPPLIER").all()
-    # D1 → 2 家供应商, D2 → 1 家
-    assert len(rels) == 3
+    # D1 → 天钢+芯联, D2 → 聚合+芯联(mentioned_supplier) = 4 个去重实体对
+    assert len(rels) == 4
     via = {(r.properties or {}).get("via") for r in rels}
     assert "alternate_key" in via
 
