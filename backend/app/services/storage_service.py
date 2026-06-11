@@ -27,6 +27,16 @@ BUCKETS = ["raw-datasets", "curated-datasets", "media", "intermediate"]
 
 
 class StorageService:
+    """MinIO 对象存储, 含本地文件系统回退。
+
+    使用默认配置时全进程共享同一个客户端; 连接失败后 60 秒内不再重试,
+    避免每次实例化都触发 urllib3 多次重连 (此前是测试与请求变慢的主因)。
+    """
+
+    _shared_client = None
+    _shared_unavailable_until: float = 0.0
+    _RETRY_INTERVAL = 60.0
+
     def __init__(
         self,
         endpoint: str | None = None,
@@ -34,24 +44,40 @@ class StorageService:
         secret_key: str | None = None,
         secure: bool | None = None,
     ):
+        import time
         self._available = False
+        self._client = None
         if not _MINIO_AVAILABLE:
             logger.warning("MinIO client not installed — storage unavailable")
-            self._client = None
             return
+
+        is_default = endpoint is None and access_key is None and secret_key is None and secure is None
+        cls = StorageService
+        if is_default:
+            if cls._shared_client is not None:
+                self._client = cls._shared_client
+                self._available = True
+                return
+            if time.monotonic() < cls._shared_unavailable_until:
+                return
         try:
-            self._client = Minio(
+            client = Minio(
                 endpoint or settings.minio_endpoint,
                 access_key=access_key or settings.minio_access_key,
                 secret_key=secret_key or settings.minio_secret_key,
                 secure=secure if secure is not None else settings.minio_use_ssl,
             )
-            self._client.list_buckets()  # 连接验证
+            client.list_buckets()  # 连接验证
+            self._client = client
             self._available = True
+            if is_default:
+                cls._shared_client = client
             logger.info("MinIO connected")
         except Exception as e:
             logger.warning(f"MinIO unavailable: {e}")
             self._available = False
+            if is_default:
+                cls._shared_unavailable_until = time.monotonic() + cls._RETRY_INTERVAL
 
     # ── 本地文件系统 fallback ─────────────────────────────────────
     _LOCAL_BASE = os.path.join(os.path.dirname(__file__), "../../../../storage")

@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.database import SessionLocal
-from app.deps import get_current_user
+from app.deps import get_current_user, require_admin
 from app.models.v2.curated import CuratedDataset, CuratedReview
 
 logger = logging.getLogger(__name__)
@@ -145,6 +145,7 @@ def submit_review(
     action: str,  # "approve" | "reject"
     notes: str = "",
     db: Session = Depends(get_db),
+    _admin=Depends(require_admin),  # PRD Security Logic: only admin can approve curated rows
 ):
     """提交审核结果（approve/reject）"""
     ds = db.query(CuratedDataset).filter(CuratedDataset.id == dataset_id).first()
@@ -219,7 +220,8 @@ def add_edit(review_id: str, body: BatchEditRequest, db: Session = Depends(get_d
 
 
 @router.post("/reviews/{review_id}/approve")
-def approve_review(review_id: str, notes: str = "", db: Session = Depends(get_db)):
+def approve_review(review_id: str, notes: str = "", db: Session = Depends(get_db),
+                   _admin=Depends(require_admin)):
     """审核通过"""
     from app.services.v2.curated.review_service import ReviewService
     svc = ReviewService(db)
@@ -228,7 +230,8 @@ def approve_review(review_id: str, notes: str = "", db: Session = Depends(get_db
 
 
 @router.post("/reviews/{review_id}/reject")
-def reject_review(review_id: str, notes: str = "", db: Session = Depends(get_db)):
+def reject_review(review_id: str, notes: str = "", db: Session = Depends(get_db),
+                  _admin=Depends(require_admin)):
     """审核拒绝"""
     from app.services.v2.curated.review_service import ReviewService
     svc = ReviewService(db)

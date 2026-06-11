@@ -416,7 +416,7 @@ export default function GraphTabV2({ ontologyId }: { ontologyId: string }) {
               onKeyDown={e => e.key === 'Enter' && handleQuery()}
               placeholder={queryMode === 'natural'
                 ? '例: 华为的供应链上下游有哪些？'
-                : 'MATCH (n) RETURN n LIMIT 10'}
+                : 'MATCH (n) WHERE n.ontology_id = $ontology_id RETURN n LIMIT 10'}
               className={`flex-1 border rounded-lg px-3 py-2 text-sm ${queryMode === 'cypher' ? 'font-mono' : ''}`}
             />
             <button

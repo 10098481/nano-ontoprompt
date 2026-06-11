@@ -27,10 +27,18 @@ class DatasetResponse(BaseModel):
 async def upload_dataset(file: UploadFile = File(...), db: Session = Depends(get_db)):
     """上传 CSV/Excel 文件，自动创建 raw Dataset + DatasetVersion"""
     import os
+    from app.config import settings
+
     name = os.path.splitext(file.filename or "upload")[0]
-    content = await file.read()
-    # 推断 kind
     ext = (file.filename or "").rsplit(".", 1)[-1].lower()
+    allowed = {e.strip() for e in settings.allowed_upload_extensions.split(",") if e.strip()}
+    if ext not in allowed:
+        raise HTTPException(400, f"不支持的文件类型: .{ext} (允许: {settings.allowed_upload_extensions})")
+
+    content = await file.read()
+    if len(content) > settings.max_upload_mb * 1024 * 1024:
+        raise HTTPException(413, f"文件超过大小限制 {settings.max_upload_mb}MB")
+    # 推断 kind
     if ext in ("csv", "xlsx", "xls"):
         kind = "structured"
     elif ext in ("json", "xml"):

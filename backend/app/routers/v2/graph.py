@@ -163,18 +163,19 @@ def integration_status(ontology_id: str):
 
 @router.post("/{ontology_id}/graph/cypher")
 def run_cypher(ontology_id: str, body: CypherRequest):
-    """执行 Cypher 查询 (先校验)"""
-    # 基础安全检查 — 拦截写查询
-    query_upper = body.query.upper().strip()
-    write_keywords = ("CREATE", "MERGE", "DELETE", "DETACH", "SET", "REMOVE", "DROP")
-    for kw in write_keywords:
-        if kw in query_upper:
-            raise HTTPException(400, f"Write queries not allowed via this endpoint: {kw}")
+    """执行 Cypher 查询 (只读校验 + 强制 ontology_id 过滤)"""
+    from app.services.v2.graph.cypher_builder import validate_readonly_cypher
+
+    error = validate_readonly_cypher(body.query)
+    if error:
+        raise HTTPException(400, error)
 
     svc = get_neo4j()
     if not svc.available:
         return {"results": [], "neo4j_available": False}
-    results = svc.run_cypher(body.query, body.params)
+    params = dict(body.params or {})
+    params["ontology_id"] = ontology_id  # 供查询中的 $ontology_id 使用, 防跨本体读取
+    results = svc.run_cypher(body.query, params)
     svc.close()
     return {"results": results, "neo4j_available": True}
 

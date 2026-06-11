@@ -35,6 +35,11 @@ async def upload_file(
     if not project:
         raise HTTPException(404, "Ontology not found")
 
+    ext_name = (file.filename or "").rsplit(".", 1)[-1].lower()
+    allowed = {e.strip() for e in settings.allowed_upload_extensions.split(",") if e.strip()}
+    if ext_name not in allowed:
+        raise HTTPException(400, f"不支持的文件类型: .{ext_name} (允许: {settings.allowed_upload_extensions})")
+
     upload_dir = os.path.join(settings.uploads_dir, ontology_id)
     os.makedirs(upload_dir, exist_ok=True)
 
@@ -43,6 +48,8 @@ async def upload_file(
     save_path = os.path.join(upload_dir, f"{file_id}{ext}")
 
     content = await file.read()
+    if len(content) > settings.max_upload_mb * 1024 * 1024:
+        raise HTTPException(413, f"文件超过大小限制 {settings.max_upload_mb}MB")
     with open(save_path, "wb") as f:
         f.write(content)
 

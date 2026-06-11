@@ -35,3 +35,23 @@ def build_shortest_path(src_id: str, tgt_id: str) -> tuple[str, dict]:
         "MATCH (s {id: $src}), (t {id: $tgt}), p = shortestPath((s)-[*]-(t)) RETURN p",
         {"src": src_id, "tgt": tgt_id},
     )
+
+
+_WRITE_KEYWORD = re.compile(
+    r"\b(CREATE|MERGE|DELETE|DETACH|SET|REMOVE|DROP|LOAD\s+CSV)\b", re.IGNORECASE
+)
+
+
+def validate_readonly_cypher(query: str) -> str | None:
+    """校验用户 Cypher: 只读 + 必须按 ontology_id 过滤。
+
+    返回错误信息, 合法返回 None。词边界匹配避免误伤含 SET/DROP 子串的
+    属性名 (如 asset、backdrop)。
+    """
+    m = _WRITE_KEYWORD.search(query)
+    if m:
+        return f"Write queries not allowed via this endpoint: {m.group(1).upper()}"
+    if "ontology_id" not in query:
+        return ("Query must filter by ontology_id, e.g. "
+                "MATCH (n) WHERE n.ontology_id = $ontology_id RETURN n LIMIT 25")
+    return None
