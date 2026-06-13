@@ -145,15 +145,19 @@ export default function LogicDetailPage() {
   if (isLoading) return <div className="p-6 text-gray-400">加载中...</div>
   if (!rule) return <div className="p-6 text-red-500">逻辑规则未找到</div>
 
-  // Related entities: name_cn listed in rule.linked_entities
-  const linkedEntityNames = new Set(rule.linked_entities ?? [])
-  const relatedEntities = (allEntities as Entity[]).filter(e => linkedEntityNames.has(e.name_cn))
-  const unlinkedEntities = (allEntities as Entity[]).filter(e => !linkedEntityNames.has(e.name_cn))
+  // linked_entities 可能是实体显示名(简易 LLM)或实体类型名(Pipeline Mapping)
+  const linkedKeys = new Set(rule.linked_entities ?? [])
+  const entityHit = (e: Entity) =>
+    linkedKeys.has(e.name_cn) || (e.type ? linkedKeys.has(e.type) : false) || (e.name_en ? linkedKeys.has(e.name_en) : false)
+  const relatedEntities = (allEntities as Entity[]).filter(entityHit)
+  const unlinkedEntities = (allEntities as Entity[]).filter(e => !entityHit(e))
 
-  // Related actions: linked_logic_ids includes this rule's id
-  const relatedActions = (allActions as Action[]).filter(a => a.linked_logic_ids?.includes(lid!))
-  const relatedActionIds = new Set(relatedActions.map(a => a.id))
-  const unlinkedActions = (allActions as Action[]).filter(a => !relatedActionIds.has(a.id))
+  // 关联动作: 显式 linked_logic_ids, 或与本规则共享 linked_entities(同一实体类)
+  const actionHit = (a: Action) =>
+    (a.linked_logic_ids?.includes(lid!) ?? false) ||
+    (a.linked_entities ?? []).some(x => linkedKeys.has(x))
+  const relatedActions = (allActions as Action[]).filter(actionHit)
+  const unlinkedActions = (allActions as Action[]).filter(a => !actionHit(a))
 
   // Entity link helpers
   const removeEntity = (entityId: string) => {

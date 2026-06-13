@@ -128,19 +128,25 @@
     "ph_name_en": "English Name",
     "ph_type": "Type",
     "ph_desc": "Description",
-    "ph_confidence": "Confidence (0-1)"
+    "ph_confidence": "Confidence (0-1)",
+    "delete_title": "Delete Entity",
+    "delete_confirm": "Delete entity “{{name}}”? This cannot be undone."
   },
   "logic": {
     "add": "Add Rule",
     "empty": "No rules yet",
     "col_formula": "Formula",
-    "ph_formula": "Formula"
+    "ph_formula": "Formula",
+    "delete_title": "Delete Rule",
+    "delete_confirm": "Delete rule “{{name}}”? This cannot be undone."
   },
   "actions": {
     "add": "Add Action",
     "empty": "No actions yet",
     "col_exec": "Execution Rule",
-    "ph_exec": "Execution Rule"
+    "ph_exec": "Execution Rule",
+    "delete_title": "Delete Action",
+    "delete_confirm": "Delete action “{{name}}”? This cannot be undone."
   },
   "prompt": {
     "title": "Prompt Management",

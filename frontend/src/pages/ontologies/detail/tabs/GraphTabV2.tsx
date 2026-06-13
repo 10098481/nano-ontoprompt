@@ -75,17 +75,21 @@ export default function GraphTabV2({ ontologyId }: { ontologyId: string }) {
   const [integrations, setIntegrations] = useState<IntegrationStatus | null>(null)
 
   useEffect(() => {
+    // 图谱与质量报告决定首屏, 优先加载; 集成状态徽章 (Neo4j/Chroma 探测)
+    // 单独异步, 不阻塞图谱渲染 — 否则服务不可用时 heartbeat 超时会拖慢整页数秒。
     Promise.all([
       apiClientV2.get(`/ontologies/${ontologyId}/graph?limit=300`).catch(() => ({ nodes: [], edges: [], neo4j_available: false })),
       apiClientV2.get(`/ontologies/${ontologyId}/graph/quality`).catch(() => null),
-      apiClientV2.get(`/ontologies/${ontologyId}/integrations/status`).catch(() => null),
     ])
-      .then(([graph, q, status]: any[]) => {
+      .then(([graph, q]: any[]) => {
         setGraphData(graph)
         setQuality(q)
-        setIntegrations(status)
       })
       .finally(() => setLoading(false))
+
+    apiClientV2.get(`/ontologies/${ontologyId}/integrations/status`)
+      .then((status: any) => setIntegrations(status))
+      .catch(() => setIntegrations(null))
   }, [ontologyId])
 
   // Build and render Cytoscape graph whenever data or toggle changes
@@ -149,6 +153,14 @@ export default function GraphTabV2({ ontologyId }: { ontologyId: string }) {
     }))
 
     cyRef.current?.destroy()
+
+    // cose 是 O(n²)/迭代的力导向布局, 固定 1600 次迭代在数百节点时要等数秒。
+    // 按可见节点数自适应迭代次数: 大图大幅减少, 小图保持高质量。
+    const nodeCount = cytoscapeNodes.length
+    const layoutIterations = nodeCount > 400 ? 200
+      : nodeCount > 150 ? 400
+      : nodeCount > 60 ? 800
+      : 1600
 
     const cy = cytoscape({
       container: containerRef.current,
@@ -221,7 +233,7 @@ export default function GraphTabV2({ ontologyId }: { ontologyId: string }) {
         nestingFactor: 1.15,
         gravity: 0.08,
         componentSpacing: 120,
-        numIter: 1600,
+        numIter: layoutIterations,
         initialTemp: 180,
         coolingFactor: 0.95,
         minTemp: 1.0,

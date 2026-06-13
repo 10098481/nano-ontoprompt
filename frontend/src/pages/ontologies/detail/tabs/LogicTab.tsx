@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { ontologyApi } from '@/api/ontologies'
 import { apiClient } from '@/api/client'
 import ConfidenceBar from '@/components/ConfidenceBar'
+import ConfirmDialog from '@/components/ConfirmDialog'
 import { Pencil, Trash2, Plus, Search, ToggleLeft, ToggleRight, CheckCircle, Loader2 } from 'lucide-react'
 import type { LogicRule } from '@/types/ontology'
 
@@ -28,6 +29,7 @@ export default function LogicTab({ ontologyId }: { ontologyId: string }) {
   const navigate = useNavigate()
   const [showCreate, setShowCreate] = useState(false)
   const [searchQ, setSearchQ] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<LogicRule | null>(null)
   const { register, handleSubmit, reset } = useForm<Partial<LogicRule>>()
 
   const { data: rules = [], isLoading } = useQuery({
@@ -135,12 +137,12 @@ export default function LogicTab({ ontologyId }: { ontologyId: string }) {
                         {enabled ? <ToggleRight size={16} className="text-green-600" /> : <ToggleLeft size={16} className="text-gray-400" />}
                       </button>
                     </td>
-                    <td className="px-4 py-3 text-right space-x-2">
-                      <button onClick={() => navigate(`/ontologies/${ontologyId}/logic/${r.id}`)}
-                        className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800">
-                        <Pencil size={14} /> 查看/编辑
-                      </button>
-                      <button onClick={() => deleteMut.mutate(r.id)} className="text-red-500"><Trash2 size={14} /></button>
+                    <td className="px-4 py-3 text-right">
+                      <div className="inline-flex items-center gap-3">
+                        <button onClick={() => navigate(`/ontologies/${ontologyId}/logic/${r.id}`)}
+                          title={t('common.edit')} className="p-1.5 rounded text-blue-600 hover:bg-blue-50"><Pencil size={14} /></button>
+                        <button onClick={() => setDeleteTarget(r)} title={t('common.delete')} className="p-1.5 rounded text-red-500 hover:bg-red-50"><Trash2 size={14} /></button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -169,6 +171,14 @@ export default function LogicTab({ ontologyId }: { ontologyId: string }) {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title={t('logic.delete_title')}
+        message={t('logic.delete_confirm', { name: deleteTarget?.name_cn ?? '' })}
+        onConfirm={() => { if (deleteTarget) deleteMut.mutate(deleteTarget.id); setDeleteTarget(null) }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

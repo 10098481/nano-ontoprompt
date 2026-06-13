@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ontologyApi } from '@/api/ontologies'
 import ConfidenceBar from '@/components/ConfidenceBar'
+import ConfirmDialog from '@/components/ConfirmDialog'
 import { Pencil, Trash2, Plus, Search } from 'lucide-react'
 import type { Entity } from '@/types/ontology'
 
@@ -15,6 +16,7 @@ export default function EntitiesTab({ ontologyId }: { ontologyId: string }) {
   const [showCreate, setShowCreate] = useState(false)
   const [searchQ, setSearchQ] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<Entity | null>(null)
   const { register, handleSubmit, reset } = useForm<Partial<Entity>>()
 
   const { data: entities = [], isLoading } = useQuery({
@@ -87,9 +89,11 @@ export default function EntitiesTab({ ontologyId }: { ontologyId: string }) {
                   <td className="px-4 py-3 text-gray-500">{e.type || '—'}</td>
                   <td className="px-4 py-3 text-gray-500 max-w-xs truncate">{e.description || '—'}</td>
                   <td className="px-4 py-3 w-32"><ConfidenceBar value={e.confidence} /></td>
-                  <td className="px-4 py-3 space-x-2" onClick={ev => ev.stopPropagation()}>
-                    <button onClick={() => navigate(`/ontologies/${ontologyId}/entities/${e.id}`)} className="text-blue-500 hover:text-blue-700"><Pencil size={14} /></button>
-                    <button onClick={() => deleteMut.mutate(e.id)} className="text-red-500 hover:text-red-700"><Trash2 size={14} /></button>
+                  <td className="px-4 py-3" onClick={ev => ev.stopPropagation()}>
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => navigate(`/ontologies/${ontologyId}/entities/${e.id}`)} title={t('common.edit')} className="p-1.5 rounded text-blue-500 hover:bg-blue-50"><Pencil size={14} /></button>
+                      <button onClick={() => setDeleteTarget(e)} title={t('common.delete')} className="p-1.5 rounded text-red-500 hover:bg-red-50"><Trash2 size={14} /></button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -119,6 +123,14 @@ export default function EntitiesTab({ ontologyId }: { ontologyId: string }) {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title={t('entities.delete_title')}
+        message={t('entities.delete_confirm', { name: deleteTarget?.name_cn ?? '' })}
+        onConfirm={() => { if (deleteTarget) deleteMut.mutate(deleteTarget.id); setDeleteTarget(null) }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

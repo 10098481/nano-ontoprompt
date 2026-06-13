@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { ontologyApi } from '@/api/ontologies'
 import { apiClient } from '@/api/client'
 import ConfidenceBar from '@/components/ConfidenceBar'
+import ConfirmDialog from '@/components/ConfirmDialog'
 import { Pencil, Trash2, Plus, ToggleLeft, ToggleRight, CheckCircle, Loader2 } from 'lucide-react'
 import type { Action } from '@/types/ontology'
 
@@ -14,6 +15,7 @@ export default function ActionsTab({ ontologyId }: { ontologyId: string }) {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const [showCreate, setShowCreate] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Action | null>(null)
   const { register, handleSubmit, reset } = useForm<Partial<Action>>()
 
   const { data: actions = [], isLoading } = useQuery({
@@ -98,9 +100,11 @@ export default function ActionsTab({ ontologyId }: { ontologyId: string }) {
                         {enabled ? <ToggleRight size={16} className="text-green-600" /> : <ToggleLeft size={16} className="text-gray-400" />}
                       </button>
                     </td>
-                    <td className="px-4 py-3 text-right space-x-2" onClick={ev => ev.stopPropagation()}>
-                      <button onClick={() => navigate(`/ontologies/${ontologyId}/actions/${a.id}`)} className="text-blue-500"><Pencil size={14} /></button>
-                      <button onClick={() => deleteMut.mutate(a.id)} className="text-red-500"><Trash2 size={14} /></button>
+                    <td className="px-4 py-3 text-right" onClick={ev => ev.stopPropagation()}>
+                      <div className="inline-flex items-center gap-3">
+                        <button onClick={() => navigate(`/ontologies/${ontologyId}/actions/${a.id}`)} title={t('common.edit')} className="p-1.5 rounded text-blue-500 hover:bg-blue-50"><Pencil size={14} /></button>
+                        <button onClick={() => setDeleteTarget(a)} title={t('common.delete')} className="p-1.5 rounded text-red-500 hover:bg-red-50"><Trash2 size={14} /></button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -128,6 +132,14 @@ export default function ActionsTab({ ontologyId }: { ontologyId: string }) {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title={t('actions.delete_title')}
+        message={t('actions.delete_confirm', { name: deleteTarget?.name_cn ?? '' })}
+        onConfirm={() => { if (deleteTarget) deleteMut.mutate(deleteTarget.id); setDeleteTarget(null) }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

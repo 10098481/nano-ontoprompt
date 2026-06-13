@@ -180,23 +180,16 @@ export default function EntityDetailPage() {
   const incomingEdges = edges.filter(e => e.data.target === eid)
   const outgoingEdges = edges.filter(e => e.data.source === eid)
 
-  // Logic rules that have this entity in their linked_entities
-  const relatedLogic = (allLogic as LogicRule[]).filter(r =>
-    (r.linked_entities ?? []).includes(entity.name_cn) ||
-    (entity.name_en ? (r.linked_entities ?? []).includes(entity.name_en) : false)
-  )
-  const unlinkedLogic = (allLogic as LogicRule[]).filter(r =>
-    !(r.linked_entities ?? []).includes(entity.name_cn)
-  )
+  // linked_entities 可能存实体显示名(简易 LLM)或实体类型名(Pipeline Mapping),
+  // 两者都匹配。
+  const matchKeys = [entity.name_cn, entity.name_en, entity.type].filter(Boolean) as string[]
+  const linkedHit = (linked?: string[]) => (linked ?? []).some(x => matchKeys.includes(x))
 
-  // Actions that have this entity in their linked_entities
-  const relatedActions = (allActions as Action[]).filter(a =>
-    a.linked_entities?.includes(entity.name_cn) ||
-    (entity.name_en && a.linked_entities?.includes(entity.name_en))
-  )
-  const unlinkedActions = (allActions as Action[]).filter(a =>
-    !a.linked_entities?.includes(entity.name_cn)
-  )
+  const relatedLogic = (allLogic as LogicRule[]).filter(r => linkedHit(r.linked_entities))
+  const unlinkedLogic = (allLogic as LogicRule[]).filter(r => !linkedHit(r.linked_entities))
+
+  const relatedActions = (allActions as Action[]).filter(a => linkedHit(a.linked_entities))
+  const unlinkedActions = (allActions as Action[]).filter(a => !linkedHit(a.linked_entities))
 
   // Property helpers
   const props = (entity.properties ?? {}) as Record<string, unknown>

@@ -128,19 +128,25 @@
     "ph_name_en": "英文名",
     "ph_type": "类型",
     "ph_desc": "描述",
-    "ph_confidence": "置信度 (0-1)"
+    "ph_confidence": "置信度 (0-1)",
+    "delete_title": "删除实体",
+    "delete_confirm": "确定删除实体「{{name}}」吗？此操作不可撤销。"
   },
   "logic": {
     "add": "添加规则",
     "empty": "暂无规则",
     "col_formula": "公式",
-    "ph_formula": "公式"
+    "ph_formula": "公式",
+    "delete_title": "删除规则",
+    "delete_confirm": "确定删除规则「{{name}}」吗？此操作不可撤销。"
   },
   "actions": {
     "add": "添加动作",
     "empty": "暂无动作",
     "col_exec": "执行规则",
-    "ph_exec": "执行规则"
+    "ph_exec": "执行规则",
+    "delete_title": "删除动作",
+    "delete_confirm": "确定删除动作「{{name}}」吗？此操作不可撤销。"
   },
   "prompt": {
     "title": "提示词管理",
