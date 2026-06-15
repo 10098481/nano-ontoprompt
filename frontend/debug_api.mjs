@@ -17,7 +17,7 @@ const result = await page.evaluate(async () => {
     const res = await fetch('/api/v1/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: 'admin', password: 'changeme123' }),
+      body: JSON.stringify({ username: 'admin', password: 'admin123' }),
     });
     const json = await res.json();
     return { status: res.status, body: json };

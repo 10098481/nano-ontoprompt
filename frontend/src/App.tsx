@@ -20,6 +20,8 @@ import ConnectionsTab from '@/pages/pipelines/connections/ConnectionsTab'
 import DatasetsTab from '@/pages/pipelines/datasets/DatasetsTab'
 import TransformsTab from '@/pages/pipelines/transforms/TransformsTab'
 import CuratedTab from '@/pages/pipelines/curated/CuratedTab'
+import DataManagementPage from '@/pages/data-management/DataManagementPage'
+import StructuredDataPage from '@/pages/data-management/structured/StructuredDataPage'
 
 const qc = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } }
@@ -39,14 +41,23 @@ export default function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/" element={<Navigate to="/overview" replace />} />
           <Route path="/overview" element={<ProtectedRoute><OverviewPage /></ProtectedRoute>} />
-          <Route path="/pipelines" element={<ProtectedRoute><PipelinesLayout /></ProtectedRoute>}>
+
+          {/* ── 数据管理 ── */}
+          <Route path="/data" element={<ProtectedRoute><DataManagementPage /></ProtectedRoute>} />
+          <Route path="/data/structured" element={<ProtectedRoute><StructuredDataPage /></ProtectedRoute>} />
+          <Route path="/data/pipelines" element={<ProtectedRoute><PipelinesLayout /></ProtectedRoute>}>
             <Route index element={<PipelineListPage />} />
             <Route path="connections" element={<ConnectionsTab />} />
             <Route path="datasets" element={<DatasetsTab />} />
             <Route path="transforms" element={<TransformsTab />} />
             <Route path="curated" element={<CuratedTab />} />
           </Route>
-          <Route path="/pipelines/:pipelineId" element={<ProtectedRoute><PipelineBuilderPage /></ProtectedRoute>} />
+          <Route path="/data/pipelines/:pipelineId" element={<ProtectedRoute><PipelineBuilderPage /></ProtectedRoute>} />
+
+          {/* Legacy redirect — keep old /pipelines URLs working */}
+          <Route path="/pipelines" element={<Navigate to="/data/pipelines" replace />} />
+          <Route path="/pipelines/*" element={<Navigate to="/data/pipelines" replace />} />
+
           <Route path="/ontologies" element={<ProtectedRoute><OntologyListPage /></ProtectedRoute>} />
           <Route path="/ontologies/new" element={<ProtectedRoute><OntologyCreateWizard /></ProtectedRoute>} />
           <Route path="/ontologies/:id" element={<ProtectedRoute><OntologyDetailPage /></ProtectedRoute>} />

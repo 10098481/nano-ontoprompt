@@ -152,7 +152,7 @@ export default function PipelineListPage() {
                   <td className="px-4 py-3 text-right">
                     <div className="flex gap-1 justify-end">
                       <button
-                        onClick={() => navigate(`/pipelines/${pl.id}`)}
+                        onClick={() => navigate(`/data/pipelines/${pl.id}`)}
                         className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-black transition-colors"
                         title="编辑"
                       >
@@ -187,7 +187,7 @@ export default function PipelineListPage() {
           onClose={() => setShowCreate(false)}
           onCreated={(pl) => {
             setShowCreate(false)
-            navigate(`/pipelines/${pl.id}`)
+            navigate(`/data/pipelines/${pl.id}`)
           }}
         />
       )}

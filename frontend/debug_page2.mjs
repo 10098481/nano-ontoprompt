@@ -11,7 +11,7 @@ const page = await ctx.newPage();
 await page.goto('http://localhost:5173/login');
 await page.waitForLoadState('networkidle');
 await page.fill('input[placeholder="用户名"]', 'admin');
-await page.fill('input[placeholder="密码"]', 'changeme123');
+await page.fill('input[placeholder="密码"]', 'admin123');
 await page.click('button[type="submit"]');
 await new Promise(r => setTimeout(r, 3000));
 

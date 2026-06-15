@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     secret_key: str = "dev-secret-key"
     encryption_key: str = ""
     first_admin_user: str = "admin"
-    first_admin_password: str = "changeme123"
+    first_admin_password: str = "admin123"
     uploads_dir: str = "./uploads"
     access_token_expire_minutes: int = 1440  # 24h
 
@@ -39,7 +39,7 @@ if settings.environment == "production":
     _insecure = []
     if settings.secret_key == "dev-secret-key":
         _insecure.append("SECRET_KEY")
-    if settings.first_admin_password == "changeme123":
+    if settings.first_admin_password == "admin123":
         _insecure.append("FIRST_ADMIN_PASSWORD")
     if settings.minio_access_key == "minioadmin" or settings.minio_secret_key == "minioadmin":
         _insecure.append("MINIO_ACCESS_KEY/MINIO_SECRET_KEY")

@@ -37,6 +37,8 @@ def _seed_db():
         from app.models.v2 import dataset as v2_dataset, pipeline as v2_pipeline, connection as v2_connection  # noqa: F401
         from app.models.v2.logic import OntologyLogicRule, OntologyStateMachine  # noqa: F401
         from app.models.v2.action import OntologyActionType, OntologyActionRun  # noqa: F401
+        from app.models.v2.curated import CuratedDataset, CuratedReview, CuratedRowEdit  # noqa: F401
+        from app.models.v2.mapping import OntologyMapping, OntologyLinkMapping  # noqa: F401
         Base.metadata.create_all(bind=engine)
 
         # SQLite column migrations — create_all skips existing tables

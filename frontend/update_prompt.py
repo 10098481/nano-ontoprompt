@@ -2,7 +2,7 @@
 import requests
 
 BASE = "http://localhost:8002/api/v1"
-r = requests.post(f"{BASE}/auth/login", json={"username": "admin", "password": "changeme123"})
+r = requests.post(f"{BASE}/auth/login", json={"username": "admin", "password": "admin123"})
 token = r.json()["data"]["access_token"]
 H = {"Authorization": f"Bearer {token}"}
 

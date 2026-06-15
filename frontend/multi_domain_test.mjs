@@ -239,7 +239,7 @@ async function runDomain(page, token, cfg, results) {
 
   await page.goto(`${BASE}/login`);
   await page.fill('input[placeholder="用户名"]', 'admin');
-  await page.fill('input[placeholder="密码"]', 'changeme123');
+  await page.fill('input[placeholder="密码"]', 'admin123');
   await page.click('button[type="submit"]');
   await page.waitForURL(`${BASE}/overview`, { timeout: 10000 });
   const token = await page.evaluate(() => localStorage.getItem('token') || '');

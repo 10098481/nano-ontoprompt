@@ -5,7 +5,7 @@ const API = 'http://localhost:8002/api/v1';
 async function login() {
   const r = await fetch(`${API}/auth/login`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: 'admin', password: 'changeme123' }),
+    body: JSON.stringify({ username: 'admin', password: 'admin123' }),
   });
   return (await r.json()).data.access_token;
 }

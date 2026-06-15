@@ -8,7 +8,7 @@ const browser = await chromium.launch({
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 const page = await ctx.newPage();
 
-for (const pwd of ['admin123', 'changeme123', 'admin', 'password', 'ontoprompt']) {
+for (const pwd of ['admin123', 'admin123', 'admin', 'password', 'ontoprompt']) {
   await page.goto('http://localhost:5173/login');
   await page.waitForLoadState('networkidle');
   await page.fill('input[type="text"]', 'admin');

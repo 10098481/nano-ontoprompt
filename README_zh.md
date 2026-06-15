@@ -81,7 +81,7 @@ docker compose -f docker-compose.v2.yml up --build
 
 将启动 PostgreSQL、Redis、Neo4j、MinIO、ChromaDB、后端与前端。轻量 v1 栈可改用 `docker-compose.yml`。
 
-打开 [http://localhost:5173](http://localhost:5173),默认账号 `admin / changeme123`。
+打开 [http://localhost:5173](http://localhost:5173),默认账号 `admin / admin123`。
 
 ### 方式二 — 手动启动(最小化,无需外部服务)
 
@@ -161,7 +161,7 @@ DATABASE_URL=sqlite:///./ontoprompt.db
 SECRET_KEY=change-me
 ENCRYPTION_KEY=                # Fernet 密钥, 用于加密存储的 API Key
 FIRST_ADMIN_USER=admin
-FIRST_ADMIN_PASSWORD=changeme123
+FIRST_ADMIN_PASSWORD=admin123
 
 # 可选服务 (缺失时优雅降级)
 REDIS_URL=redis://localhost:6379/0
@@ -176,6 +176,26 @@ ALLOWED_UPLOAD_EXTENSIONS=csv,xlsx,xls,json,xml,pdf,docx,doc,pptx,ppt,md,txt
 # 可选: LLM 辅助语义外键检测 (需先配置模型)
 ENABLE_LLM_FK_DETECTION=0
 ```
+
+---
+
+## 故障排查
+
+**前端容器报 `AggregateError [ECONNREFUSED]`,登录失败。**
+拉取最新代码 — Vite 代理已通过 `VITE_API_PROXY_TARGET` 在 Docker 内指向 `http://backend:8000`。然后重建: `docker compose up -d --build frontend`。
+
+**已有部署用 `admin / admin123` 登录失败。**
+admin 用户用旧的默认密码 seed,需要重置:
+
+```bash
+# Docker
+docker compose exec backend python scripts/reset_admin_password.py
+
+# 手动启动
+cd backend && python scripts/reset_admin_password.py
+```
+
+可选参数: `--user <username>` (默认 `admin`)、`--password <new_pwd>` (默认 `admin123`)。
 
 ---
 

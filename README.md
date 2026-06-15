@@ -81,7 +81,7 @@ docker compose -f docker-compose.v2.yml up --build
 
 This starts PostgreSQL, Redis, Neo4j, MinIO, ChromaDB, backend and frontend. For the lightweight v1 stack use `docker-compose.yml` instead.
 
-Open [http://localhost:5173](http://localhost:5173). Default credentials: `admin / changeme123`.
+Open [http://localhost:5173](http://localhost:5173). Default credentials: `admin / admin123`.
 
 ### Option 2 — Manual setup (minimal, no external services)
 
@@ -161,7 +161,7 @@ DATABASE_URL=sqlite:///./ontoprompt.db
 SECRET_KEY=change-me
 ENCRYPTION_KEY=                # Fernet key for encrypting stored API keys
 FIRST_ADMIN_USER=admin
-FIRST_ADMIN_PASSWORD=changeme123
+FIRST_ADMIN_PASSWORD=admin123
 
 # Optional services (graceful fallback when absent)
 REDIS_URL=redis://localhost:6379/0
@@ -176,6 +176,26 @@ ALLOWED_UPLOAD_EXTENSIONS=csv,xlsx,xls,json,xml,pdf,docx,doc,pptx,ppt,md,txt
 # Optional: LLM-assisted semantic FK detection (needs a configured model)
 ENABLE_LLM_FK_DETECTION=0
 ```
+
+---
+
+## Troubleshooting
+
+**Login fails with `AggregateError [ECONNREFUSED]` in the frontend container.**
+Pull the latest code — the Vite proxy now targets `http://backend:8000` inside Docker via `VITE_API_PROXY_TARGET`. Then rebuild: `docker compose up -d --build frontend`.
+
+**Cannot login with `admin / admin123` on an existing deployment.**
+The admin user was seeded with the old default password. Reset it:
+
+```bash
+# Docker
+docker compose exec backend python scripts/reset_admin_password.py
+
+# Manual setup
+cd backend && python scripts/reset_admin_password.py
+```
+
+Options: `--user <username>` (default `admin`), `--password <new_pwd>` (default `admin123`).
 
 ---
 

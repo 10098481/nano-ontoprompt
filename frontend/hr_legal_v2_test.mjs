@@ -32,7 +32,7 @@ async function apiGet(path_, tok) {
 async function login(page) {
   await page.goto(`${BASE}/login`);
   await page.fill('input[type="text"], input[name="username"]', 'admin');
-  await page.fill('input[type="password"]', 'changeme123');
+  await page.fill('input[type="password"]', 'admin123');
   await page.click('button[type="submit"]');
   await page.waitForURL(/\/(ontologies|dashboard|overview)/, { timeout: 10000 });
   console.log('  ✓ 登录成功');
@@ -41,7 +41,7 @@ async function login(page) {
 async function getToken() {
   const r = await fetch(`${API}/auth/login`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: 'admin', password: 'changeme123' }),
+    body: JSON.stringify({ username: 'admin', password: 'admin123' }),
   });
   const j = await r.json();
   return j.data?.access_token ?? '';

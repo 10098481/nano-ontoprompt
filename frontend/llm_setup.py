@@ -4,7 +4,7 @@ import requests, json, time, sys, os
 BASE = "http://localhost:8002/api/v1"
 DATA = os.path.join(os.path.dirname(__file__), "..", "test_data", "documents")
 
-r = requests.post(f"{BASE}/auth/login", json={"username": "admin", "password": "changeme123"})
+r = requests.post(f"{BASE}/auth/login", json={"username": "admin", "password": "admin123"})
 token = r.json()["data"]["access_token"]
 H = {"Authorization": f"Bearer {token}"}
 

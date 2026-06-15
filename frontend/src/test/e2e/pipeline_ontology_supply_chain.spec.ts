@@ -34,7 +34,7 @@ const PK_BY_FILE: Record<string, string> = {
 }
 
 async function login(page: Page) {
-  for (const password of ['changeme123', 'admin123']) {
+  for (const password of ['admin123', 'admin123']) {
     await page.goto(`${BASE}/login`)
     await page.fill('input[placeholder="用户名"]', 'admin')
     await page.fill('input[placeholder="密码"]', password)

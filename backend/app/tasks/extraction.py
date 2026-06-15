@@ -428,6 +428,9 @@ def run_extraction(self, task_id: str):
         task.progress = {"stage": "done", "pct": 100}
         db.commit()
 
+        # 同步到 Neo4j（非致命，失败不影响任务成功状态）
+        _sync_neo4j(db, task.ontology_id)
+
     except Exception as e:
         task = db.query(ExtractionTask).filter(ExtractionTask.id == task_id).first()
         if task:
@@ -436,3 +439,61 @@ def run_extraction(self, task_id: str):
             db.commit()
     finally:
         db.close()
+
+
+def _sync_neo4j(db, ontology_id: str) -> None:
+    """把 SQLite 里的实体/关系批量同步到 Neo4j。Neo4j 不可用或出错时静默跳过。"""
+    try:
+        from app.services.v2.graph.neo4j_service import Neo4jService
+        from app.models.entity import Entity
+        from app.models.relation import Relation
+
+        svc = Neo4jService()
+        if not svc.available:
+            return
+
+        entities = db.query(Entity).filter(Entity.ontology_id == ontology_id).all()
+        if not entities:
+            svc.close()
+            return
+
+        # 按 type 分组批量 upsert（label = entity.type）
+        from collections import defaultdict
+        by_type: dict = defaultdict(list)
+        entity_type_map: dict[str, str] = {}  # id → type
+        for e in entities:
+            label = e.type or "OntologyEntity"
+            entity_type_map[e.id] = label
+            props = {
+                **(e.properties or {}),
+                "id": e.id,
+                "ontology_id": ontology_id,
+                "name_cn": e.name_cn or "",
+                "name_en": e.name_en or "",
+                "name": e.name_cn or e.name_en or e.id,
+                "display_name": e.name_cn or e.name_en or e.id,
+                "type": label,
+                "description": e.description or "",
+                "confidence": e.confidence or 0.85,
+            }
+            by_type[label].append(props)
+
+        for label, batch in by_type.items():
+            svc.batch_upsert_entities(label, batch, key_field="id")
+
+        # 写关系（逐条 MERGE，避免类型不匹配导致批量失败）
+        relations = db.query(Relation).filter(Relation.ontology_id == ontology_id).all()
+        for r in relations:
+            src_type = entity_type_map.get(r.source_entity, "OntologyEntity")
+            tgt_type = entity_type_map.get(r.target_entity, "OntologyEntity")
+            rel_type = (r.type or "RELATED").upper().replace(" ", "_").replace("-", "_")
+            svc.upsert_relation(
+                src_label=src_type, src_key=r.source_entity,
+                tgt_label=tgt_type, tgt_key=r.target_entity,
+                rel_type=rel_type,
+                props={"id": r.id, "ontology_id": ontology_id, "confidence": r.confidence or 0.85},
+            )
+
+        svc.close()
+    except Exception:
+        pass  # Neo4j 同步失败不影响提取结果

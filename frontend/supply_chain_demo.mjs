@@ -14,7 +14,7 @@ fs.mkdirSync(SS, { recursive: true });
 
 async function getToken() {
   return new Promise((resolve, reject) => {
-    const body = JSON.stringify({ username: 'admin', password: 'changeme123' });
+    const body = JSON.stringify({ username: 'admin', password: 'admin123' });
     const req = http.request({ hostname: 'localhost', port: 8000, path: '/api/v1/auth/login', method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } }, res => {
       let data = ''; res.on('data', c => data += c);
       res.on('end', () => { try { resolve(JSON.parse(data).data.access_token); } catch { reject(new Error(data)); } });

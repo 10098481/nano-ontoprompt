@@ -74,7 +74,7 @@ console.log('══════════════════════�
 // 1. 登录
 let loginRes = await apiCall('POST', '/api/v1/auth/login', { username: 'admin', password: 'admin123' });
 if (!loginRes.body?.data?.access_token) {
-  loginRes = await apiCall('POST', '/api/v1/auth/login', { username: 'admin', password: 'changeme123' });
+  loginRes = await apiCall('POST', '/api/v1/auth/login', { username: 'admin', password: 'admin123' });
 }
 const token = loginRes.body?.data?.access_token;
 if (!token) { console.error('Login failed'); process.exit(1); }

@@ -8,7 +8,7 @@ import requests, sys
 BASE = "http://localhost:8000/api/v1"
 
 # ── Auth ──────────────────────────────────────────────────────────────────
-r = requests.post(f"{BASE}/auth/login", json={"username": "admin", "password": "changeme123"})
+r = requests.post(f"{BASE}/auth/login", json={"username": "admin", "password": "admin123"})
 r.raise_for_status()
 token = r.json()["data"]["access_token"]
 H = {"Authorization": f"Bearer {token}"}

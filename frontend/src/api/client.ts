@@ -16,7 +16,13 @@ function createApiClient(baseURL: string): ApiClient {
   })
   client.interceptors.response.use(
     res => res.data.data !== undefined ? res.data.data : res.data,
-    err => Promise.reject(err.response?.data ?? err)
+    err => {
+      if (err.response?.status === 401) {
+        localStorage.removeItem('token')
+        window.location.href = '/login'
+      }
+      return Promise.reject(err.response?.data ?? err)
+    }
   )
   return {
     get: (url, config) => client.get(url, config) as Promise<any>,

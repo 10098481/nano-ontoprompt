@@ -44,7 +44,7 @@ async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
   await page.goto(`${BASE}/login`);
   await page.waitForLoadState('networkidle');
   await page.fill('input[placeholder="用户名"]', 'admin');
-  await page.fill('input[placeholder="密码"]', 'changeme123');
+  await page.fill('input[placeholder="密码"]', 'admin123');
   await shot(page, '登录页 - 填写用户名和密码');
   await page.click('button[type="submit"]');
   await page.waitForURL(`${BASE}/overview`, { timeout: 10000 });

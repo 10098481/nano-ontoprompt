@@ -118,7 +118,7 @@ export default function PipelineBuilderPage() {
         setEdges((def.edges as any[] || []).map((e: any) => ({
           id: e.id, source: e.source, target: e.target, type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed },
         })))
-      }).catch(() => navigate('/pipelines')).finally(() => setLoading(false))
+      }).catch(() => navigate('/data/pipelines')).finally(() => setLoading(false))
   }, [pipelineId])
 
   const saveDefinition = useCallback(async () => {
@@ -191,7 +191,7 @@ export default function PipelineBuilderPage() {
     <ReactFlowProvider>
       <div className="h-[calc(100vh-5rem)] flex flex-col -m-6">
         <div className="flex items-center gap-3 px-4 py-2 bg-white border-b shrink-0">
-          <button onClick={() => navigate('/pipelines')} className="p-1.5 rounded hover:bg-gray-100 text-gray-500"><ArrowLeft size={16} /></button>
+          <button onClick={() => navigate(-1)} className="p-1.5 rounded hover:bg-gray-100 text-gray-500"><ArrowLeft size={16} /></button>
           <span className="font-semibold text-sm">{pipeline.name}</span>
           <span className={`text-xs px-1.5 py-0.5 rounded border ${pipeline.status === 'published' ? 'bg-green-50 text-green-600 border-green-200' : pipeline.status === 'failed' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>{pipeline.status}</span>
           <span className="text-xs text-gray-400">v{pipeline.version || 1}</span>

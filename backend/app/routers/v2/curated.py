@@ -70,6 +70,24 @@ def list_curated(db: Session = Depends(get_db)):
     return result
 
 
+@router.delete("/{dataset_id}", status_code=204)
+def delete_curated(dataset_id: str, db: Session = Depends(get_db), _admin=Depends(require_admin)):
+    """删除 Curated Dataset 及其版本数据（仅管理员）"""
+    from app.models.v2.dataset import Dataset, DatasetVersion, MediaItem
+    ds = db.query(Dataset).filter(Dataset.id == dataset_id, Dataset.kind == "curated").first()
+    if not ds:
+        raise HTTPException(404, "Curated dataset not found")
+    # 清理关联版本和媒体项
+    ver_ids = [v.id for v in db.query(DatasetVersion).filter(DatasetVersion.dataset_id == dataset_id).all()]
+    if ver_ids:
+        db.query(MediaItem).filter(MediaItem.dataset_version_id.in_(ver_ids)).delete(synchronize_session=False)
+    db.query(DatasetVersion).filter(DatasetVersion.dataset_id == dataset_id).delete(synchronize_session=False)
+    # 清理审核记录
+    db.query(CuratedReview).filter(CuratedReview.curated_dataset_id == dataset_id).delete(synchronize_session=False)
+    db.delete(ds)
+    db.commit()
+
+
 @router.get("/{dataset_id}", response_model=CuratedDatasetResponse)
 def get_curated(dataset_id: str, db: Session = Depends(get_db)):
     # 先查旧 curated 表，再查 v2_datasets

@@ -22,7 +22,7 @@ const page   = await ctx.newPage()
 // Login
 await page.goto(`${BASE}/login`)
 await page.fill('input[placeholder="用户名"]', 'admin')
-await page.fill('input[placeholder="密码"]', 'changeme123')
+await page.fill('input[placeholder="密码"]', 'admin123')
 await page.click('button[type="submit"]')
 await page.waitForURL(`${BASE}/overview`)
 

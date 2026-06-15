@@ -3,7 +3,7 @@ const OID = 'ef1a1be8-d336-4c82-af43-eddd9fe75019';
 
 const loginRes = await fetch(`${API}/auth/login`, {
   method: 'POST', headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ username: 'admin', password: 'changeme123' }),
+  body: JSON.stringify({ username: 'admin', password: 'admin123' }),
 });
 const token = (await loginRes.json()).data.access_token;
 

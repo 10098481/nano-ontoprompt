@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import { ontologyApi, promptApi, modelApi } from '@/api/ontologies'
 import { CheckCircle, XCircle, Loader2, ChevronRight, AlertTriangle, AlertCircle, Info } from 'lucide-react'
 import type { OntologyDetail } from '@/types/ontology'
@@ -85,6 +86,18 @@ const STAGE_PCT: Record<string, number> = {
 
 const lastTaskKey = (oid: string) => `ontoprompt_last_task_${oid}`
 
+function StructuredDataLink() {
+  const navigate = useNavigate()
+  return (
+    <button
+      onClick={() => navigate('/data/structured')}
+      className="text-xs text-blue-600 hover:underline"
+    >
+      → 查看结构数据
+    </button>
+  )
+}
+
 function PipelineMappingInfo({ ontology }: { ontology: OntologyDetail }) {
   const [mappings, setMappings] = useState<any[]>([])
   useEffect(() => {
@@ -119,7 +132,7 @@ function PipelineMappingInfo({ ontology }: { ontology: OntologyDetail }) {
         </div>
       )}
       <div className="pt-2 border-t flex gap-2">
-        <a href="/pipelines/curated" className="text-xs text-blue-600 hover:underline">→ 查看 Curated Datasets</a>
+        <StructuredDataLink />
       </div>
     </div>
   )
