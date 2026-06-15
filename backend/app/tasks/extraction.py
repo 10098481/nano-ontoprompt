@@ -285,6 +285,9 @@ def run_extraction(self, task_id: str):
             if e_data.get("name_en"):
                 entity_name_to_id[e_data["name_en"]] = eid
 
+        # 实体写完先 commit 一次，缩短大事务窗口，避免 saving 阶段 SQLite 写冲突
+        db.commit()
+
         # ── Fix 2+4: upsert relations (by source_id, target_id, type) ────────
         existing_rels    = db.query(Relation).filter(Relation.ontology_id == task.ontology_id).all()
         existing_rel_set = {(r.source_entity, r.target_entity, r.type) for r in existing_rels}
@@ -432,11 +435,15 @@ def run_extraction(self, task_id: str):
         _sync_neo4j(db, task.ontology_id)
 
     except Exception as e:
-        task = db.query(ExtractionTask).filter(ExtractionTask.id == task_id).first()
-        if task:
-            task.status = "failed"
-            task.error  = str(e)
-            db.commit()
+        try:
+            db.rollback()  # 清除错误态，确保后续 query/commit 可用
+            task = db.query(ExtractionTask).filter(ExtractionTask.id == task_id).first()
+            if task:
+                task.status = "failed"
+                task.error  = str(e)
+                db.commit()
+        except Exception:
+            pass  # 数据库完全不可用时静默跳过，避免掩盖原始异常
     finally:
         db.close()
 

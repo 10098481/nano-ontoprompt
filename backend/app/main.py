@@ -66,6 +66,15 @@ def _seed_db():
 
         seed_admin(db)
 
+        # 重启时清理遗留的 running 任务 — daemon 线程被杀后 task 会永久卡在 85%
+        from app.models.extraction_task import ExtractionTask
+        stale = db.query(ExtractionTask).filter(ExtractionTask.status == "running").all()
+        for t in stale:
+            t.status = "failed"
+            t.error  = "服务重启，任务中断。请重新触发提取。"
+        if stale:
+            db.commit()
+
         # Seed confidence rules
         if db.query(RulesConfig).count() == 0:
             rules = [
