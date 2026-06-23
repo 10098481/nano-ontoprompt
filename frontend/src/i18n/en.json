@@ -65,7 +65,8 @@
     "email": "Email",
     "no_account": "No account?",
     "have_account": "Have an account?",
-    "login_error": "Invalid username or password"
+    "login_error": "Invalid username or password",
+    "network_error": "Network error — please verify the backend service is running"
   },
   "ontology": {
     "title": "Ontology Management",

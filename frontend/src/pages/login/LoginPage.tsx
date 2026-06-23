@@ -25,7 +25,7 @@ export default function LoginPage() {
     } catch (e: any) {
       localStorage.removeItem('token')
       console.error('login failed:', e)
-      setError(e?.response ? t('auth.login_error') : '网络连接失败，请确认后端服务已启动')
+      setError(e?.response ? t('auth.login_error') : t('auth.network_error'))
     } finally {
       setLoading(false)
     }
