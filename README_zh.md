@@ -43,9 +43,16 @@
 - **知识图谱** — Cytoscape.js 交互式网状视图,可一键隐藏孤立节点;Neo4j 可用时由其驱动,否则回退 SQLite
 - **搜索** — 关键词搜索(ChromaDB 不可用时回退 SQL)与语义搜索(ChromaDB)
 
+### 质量审查(ReAct Agent)
+- **LLM 驱动多步审查** — AI Agent 系统检查本体质量:孤立实体、断链引用、缺失关系、低覆盖实体类型
+- **工具调用架构** — 8 个内置检查工具(摘要、覆盖率、引用校验、模式推断)可链式调用
+- **审查报告** — 按严重级别分类的问题及修复建议,持久化为审计任务
+
 ### 平台
-- **LLM 提取** — 支持 OpenAI、Anthropic 及任何 OpenAI 兼容模型
+- **LLM 提取** — 支持 OpenAI、Anthropic 及任何 OpenAI 兼容模型;多道防线杜绝模糊关系类型
+- **LiteLLM 代理** — 可选 LiteLLM 集成,统一管理多 LLM 提供商的 API Key 与用量
 - **提示词管理** — 领域提示词版本化管理,一键生成模板
+- **数据管理** — 结构化数据浏览器,含 Curated 数据集详情面板、行级编辑与审核流程
 - **导出** — JSON、YAML、CSV、Turtle (RDF)、HTML
 - **优雅降级** — Neo4j / MinIO / ChromaDB / Redis 全部可选;缺失时自动回退 SQLite + 本地文件存储 + 同步执行
 - **多语言界面** — 中英文切换
@@ -65,6 +72,13 @@
 | 向量库 | ChromaDB(可选) |
 | 任务队列 | Celery + Redis(可选,同步执行回退) |
 | LLM 客户端 | OpenAI SDK、Anthropic SDK |
+| LLM 代理 | LiteLLM(可选) |
+
+---
+
+## 架构指南
+
+深入理解 Ontology-as-a-Service 架构设计 — 包括 Object/Link/Function/Governance 设计模式、多租户隔离、临床筛查工作流、生产部署 Checklist — 详见 **[ONTOLOGY.md](./ONTOLOGY.md)**（2727 行）。
 
 ---
 
@@ -140,13 +154,19 @@ nano-ontoprompt/
 │   ├── scripts/               # 维护脚本 (孤儿数据清理、迁移)
 │   └── tests/                 # 300+ pytest 用例
 ├── frontend/
+│   ├── scripts/                # 一次性调试/演示/测试脚本
 │   └── src/
-│       ├── pages/pipelines/   # 管道列表 + 画布构建器
-│       ├── pages/ontologies/  # 本体详情: 图谱 / 实体 / 逻辑 / 动作
-│       └── api/               # Axios 客户端 (v1 + v2)
-├── docker-compose.yml         # v1 轻量栈
-├── docker-compose.v2.yml      # 完整栈: Postgres + Redis + Neo4j + MinIO + Chroma
-└── test_data/                 # 示例数据集与 E2E 验收脚本
+│       ├── pages/pipelines/    # 管道列表 + 画布构建器
+│       ├── pages/ontologies/   # 本体详情: 图谱 / 实体 / 逻辑 / 动作 / 审查
+│       ├── pages/data-management/  # 结构化数据浏览器 + Curated 详情面板
+│       └── api/                # Axios 客户端 (v1 + v2)
+├── scripts/
+│   └── data/                   # 数据导入与实体关联脚本 (SNOMED、供应链)
+├── docker-compose.yml          # v1 轻量栈
+├── docker-compose.v2.yml       # 完整栈: Postgres + Redis + Neo4j + MinIO + Chroma + LiteLLM
+├── litellm_config.yaml         # LiteLLM 代理配置
+├── ONTOLOGY.md                 # 架构设计指南
+└── test_data/                  # 示例数据集与 E2E 验收脚本
 ```
 
 ---
@@ -196,6 +216,9 @@ cd backend && python scripts/reset_admin_password.py
 ```
 
 可选参数: `--user <username>` (默认 `admin`)、`--password <new_pwd>` (默认 `admin123`)。
+
+**LLM 提取被 OOM-kill(macOS 或低内存环境)。**
+并行 LLM 提取在内存有限的机器上可能耗尽资源。代码已默认改为串行提取(`max_workers=1`)。如仍遇到问题,可逐域提取,或减少每次提取上传的文件数。
 
 ---
 

@@ -43,9 +43,16 @@ In nano-ontoprompt, every ontology is made of these building blocks:
 - **Knowledge graph** — interactive Cytoscape.js mesh view with isolated-node toggle; Neo4j-backed when available, SQLite fallback otherwise
 - **Search** — keyword search (SQL fallback when ChromaDB is down) and semantic search (ChromaDB)
 
+### Quality Audit (ReAct Agent)
+- **LLM-driven multi-step review** — an AI agent systematically checks ontology quality: isolated entities, broken references, missing relations, low-coverage entity types
+- **Tool-calling architecture** — 8 built-in inspection tools (summary, coverage, ref-check, pattern inference) that the agent can chain together
+- **Findings report** — severity-classified issues with actionable fix suggestions, persisted as audit tasks
+
 ### Platform
-- **LLM extraction** — any OpenAI, Anthropic, or OpenAI-compatible model
+- **LLM extraction** — any OpenAI, Anthropic, or OpenAI-compatible model; defense-in-depth against fuzzy relation types
+- **LiteLLM proxy** — optional LiteLLM integration for unified API-key management and cost tracking across multiple LLM providers
 - **Prompt management** — versioned domain prompts with one-click template generation
+- **Data management** — structured data browser with curated dataset detail panel, row-level editing, and review workflow
 - **Export** — JSON, YAML, CSV, Turtle (RDF), HTML
 - **Graceful degradation** — Neo4j / MinIO / ChromaDB / Redis are all optional; the system falls back to SQLite + local file storage + synchronous runs
 - **Multi-language UI** — English / Chinese toggle
@@ -65,6 +72,13 @@ In nano-ontoprompt, every ontology is made of these building blocks:
 | Vector DB | ChromaDB (optional) |
 | Task queue | Celery + Redis (optional, synchronous fallback) |
 | LLM clients | OpenAI SDK, Anthropic SDK |
+| LLM proxy | LiteLLM (optional) |
+
+---
+
+## Architecture Guide
+
+For a deep dive into the Ontology-as-a-Service architecture — including Object/Link/Function/Governance design patterns, multi-tenant isolation, clinical screening workflows, and production deployment checklists — see **[ONTOLOGY.md](./ONTOLOGY.md)** (2727 lines, in Chinese).
 
 ---
 
@@ -140,13 +154,19 @@ nano-ontoprompt/
 │   ├── scripts/               # Maintenance scripts (orphan data cleanup, migration)
 │   └── tests/                 # 300+ pytest cases
 ├── frontend/
+│   ├── scripts/                # One-off debug / demo / test scripts
 │   └── src/
-│       ├── pages/pipelines/   # Pipeline list + canvas builder
-│       ├── pages/ontologies/  # Ontology detail: graph / entities / logic / actions
-│       └── api/               # Axios clients (v1 + v2)
-├── docker-compose.yml         # v1 lightweight stack
-├── docker-compose.v2.yml      # Full stack: Postgres + Redis + Neo4j + MinIO + Chroma
-└── test_data/                 # Sample datasets and E2E acceptance scripts
+│       ├── pages/pipelines/    # Pipeline list + canvas builder
+│       ├── pages/ontologies/   # Ontology detail: graph / entities / logic / actions / audit
+│       ├── pages/data-management/  # Structured data browser + curated detail panel
+│       └── api/                # Axios clients (v1 + v2)
+├── scripts/
+│   └── data/                   # Data import & entity-linking scripts (SNOMED, supply chain)
+├── docker-compose.yml          # v1 lightweight stack
+├── docker-compose.v2.yml       # Full stack: Postgres + Redis + Neo4j + MinIO + Chroma + LiteLLM
+├── litellm_config.yaml         # LiteLLM proxy configuration
+├── ONTOLOGY.md                 # Comprehensive architecture guide
+└── test_data/                  # Sample datasets and E2E acceptance scripts
 ```
 
 ---
@@ -196,6 +216,9 @@ cd backend && python scripts/reset_admin_password.py
 ```
 
 Options: `--user <username>` (default `admin`), `--password <new_pwd>` (default `admin123`).
+
+**LLM extraction OOM-killed (macOS / low-memory environments).**
+Parallel extraction with multiple LLM calls can exhaust memory on machines with limited RAM. The code now defaults to serial extraction (`max_workers=1`). If you still hit issues, extract one domain at a time, or reduce the number of uploaded files per ontology.
 
 ---
 
