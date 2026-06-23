@@ -1,13 +1,4 @@
-
 from app.tasks.celery_app import celery_app
-
-from celery import Celery
-from app.config import settings
-
-celery_app = Celery("ontoprompt", broker=settings.redis_url, backend=settings.redis_url)
-# broker 不可用时快速失败 (默认会长时间重试, 导致 API 请求阻塞)
-celery_app.conf.task_publish_retry = False
-celery_app.conf.broker_connection_timeout = 3
 
 # 确保 Celery worker 在 fork 前加载所有模型映射, 避免子进程缺少模型注册
 from app.models import (  # noqa: E402, F401

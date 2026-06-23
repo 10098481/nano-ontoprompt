@@ -345,7 +345,6 @@ def delete_prompt(prompt_id: str, db: Session = Depends(get_db), _=Depends(get_c
     )
     db.delete(p)
     db.commit()
-    db.delete(p); db.commit()
 
 @router.post("/generate-template")
 def generate_prompt_template(

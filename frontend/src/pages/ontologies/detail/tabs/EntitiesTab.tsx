@@ -39,6 +39,14 @@ export default function EntitiesTab({ ontologyId }: { ontologyId: string }) {
 
   const displayedEntities = useMemo(() => {
     let list = [...entityList]
+    const q = searchQ.trim().toLowerCase()
+    if (q) {
+      list = list.filter(e =>
+        (e.name_cn || '').toLowerCase().includes(q) ||
+        (e.name_en || '').toLowerCase().includes(q) ||
+        (e.type || '').toLowerCase().includes(q)
+      )
+    }
     if (typeFilter) {
       list = list.filter(e => e.type === typeFilter)
     }
@@ -62,7 +70,7 @@ export default function EntitiesTab({ ontologyId }: { ontologyId: string }) {
       return sortDir === 'asc' ? cmp : -cmp
     })
     return list
-  }, [entityList, typeFilter, sortKey, sortDir])
+  }, [entityList, searchQ, typeFilter, sortKey, sortDir])
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -123,42 +131,18 @@ export default function EntitiesTab({ ontologyId }: { ontologyId: string }) {
             </span>
           )}
         </div>
-  const allTypes = useMemo(() => {
-    const s = new Set<string>()
-    ;(entities as Entity[]).forEach(e => { if (e.type) s.add(e.type) })
-    return Array.from(s).sort()
-  }, [entities])
-
-  const filtered = useMemo(() => {
-    const q = searchQ.trim().toLowerCase()
-    return (entities as Entity[]).filter(e => {
-      const matchQ = !q || e.name_cn?.toLowerCase().includes(q) || e.name_en?.toLowerCase().includes(q) || e.type?.toLowerCase().includes(q)
-      const matchType = !typeFilter || e.type === typeFilter
-      return matchQ && matchType
-    })
-  }, [entities, searchQ, typeFilter])
-
-  return (
-    <div className="space-y-4">
-      {/* Search bar */}
-      <div className="flex gap-2 items-center">
-        <div className="relative flex-1">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          <input value={searchQ} onChange={e => setSearchQ(e.target.value)}
-            placeholder="搜索名称 / 类型…"
-            className="w-full border rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black" />
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input value={searchQ} onChange={e => setSearchQ(e.target.value)}
+              placeholder="搜索名称 / 类型…"
+              className="w-56 border rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black" />
+          </div>
+          <button onClick={() => { setShowCreate(true); reset() }}
+            className="flex items-center gap-2 px-3 py-2 bg-black text-white rounded-lg text-sm">
+            <Plus size={14} /> {t('entities.add')}
+          </button>
         </div>
-        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-          className="border rounded-lg px-3 py-2 text-sm text-gray-600">
-          <option value="">全部类型</option>
-          {allTypes.map(tp => <option key={tp} value={tp}>{tp}</option>)}
-        </select>
-      </div>
-      <div className="flex justify-end">
-        <button onClick={() => { setShowCreate(true); reset() }}
-          className="flex items-center gap-2 px-3 py-2 bg-black text-white rounded-lg text-sm">
-          <Plus size={14} /> {t('entities.add')}
-        </button>
       </div>
 
       <div className="bg-white border rounded-lg overflow-hidden">
@@ -186,7 +170,6 @@ export default function EntitiesTab({ ontologyId }: { ontologyId: string }) {
                 const { labelCn, abbr } = parseEntityDisplay(e)
                 const displayAbbr = e.name_abbr?.trim() || abbr
                 return (
-              {filtered.map(e => (
                 <tr key={e.id} className="border-b hover:bg-gray-50 cursor-pointer"
                   onClick={() => navigate(`/ontologies/${ontologyId}/entities/${e.id}`)}>
                   <td className="px-4 py-3 font-medium">{labelCn}</td>
@@ -207,7 +190,7 @@ export default function EntitiesTab({ ontologyId }: { ontologyId: string }) {
             </tbody>
           </table>
         )}
-        {!isLoading && filtered.length === 0 && (
+        {!isLoading && displayedEntities.length === 0 && (
           <p className="text-center text-gray-400 py-8">{searchQ || typeFilter ? '无匹配结果' : t('entities.empty')}</p>
         )}
         {!isLoading && entityList.length > 0 && displayedEntities.length === 0 && (

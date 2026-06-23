@@ -12,14 +12,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from sqlalchemy import inspect, text
-from app.database import engine, Base, SessionLocal
-from app.routers import auth, users, overview, ontologies, files, prompts, models, entities, logic, actions, extraction, graph, settings, export, audit
-
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.database import engine, Base, SessionLocal
 from app.config import settings
-from app.routers import auth, users, overview, ontologies, files, prompts, models, entities, logic, actions, extraction, graph, settings as settings_router, export
+from app.routers import auth, users, overview, ontologies, files, prompts, models, entities, logic, actions, extraction, graph, settings as settings_router, export, audit
 from app.routers.v2 import connections as connections_v2
 from app.routers.v2 import datasets as datasets_v2
 from app.routers.v2 import pipelines as pipelines_v2
@@ -65,7 +61,6 @@ def _seed_db():
                 conn.execute(text("ALTER TABLE entities ADD COLUMN canonical_id VARCHAR(200)"))
                 conn.commit()
             for stmt in [
-                "ALTER TABLE extraction_tasks ADD COLUMN validation_report TEXT",
                 "ALTER TABLE model_configs ADD COLUMN config_type VARCHAR(30) DEFAULT 'llm'",
                 "ALTER TABLE model_configs ADD COLUMN options JSON DEFAULT '{}'",
                 "ALTER TABLE ontology_projects ADD COLUMN build_mode VARCHAR(30) DEFAULT 'simple_llm'",
