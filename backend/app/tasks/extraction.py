@@ -280,7 +280,7 @@ def run_extraction(self, task_id: str):
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         all_results = []
-        max_workers = min(4, len(valid_mds))
+        max_workers = 1  # serial extraction to avoid OOM with large LLM payloads
         completed = 0
 
         task.progress = {"stage": f"extracting files 0/{len(valid_mds)} (parallel ×{max_workers})", "pct": 20}
@@ -439,7 +439,10 @@ def run_extraction(self, task_id: str):
             tgt_name = rel.get("target") or rel.get("target_entity", "")
             src_id   = _fuzzy_resolve_entity(src_name, entity_name_to_id)
             tgt_id   = _fuzzy_resolve_entity(tgt_name, entity_name_to_id)
-            rel_type = rel.get("type", "关联")
+            rel_type = (rel.get("type") or "RELATED").strip()
+            # Reject fuzzy Chinese relation types — must be semantic English
+            if rel_type in ("关联", "未知", "相关", "其他", "") or not rel_type.isascii():
+                continue
             if src_id and tgt_id and (src_id, tgt_id, rel_type) not in existing_rel_set:
                 db.add(Relation(
                     id=str(uuid.uuid4()), ontology_id=task.ontology_id,
