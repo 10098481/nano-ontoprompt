@@ -276,17 +276,33 @@ def run_extraction(self, task_id: str):
 
         combined_text = _clean("\n\n---\n\n".join(f.converted_md or "" for f in valid_mds if f.converted_md))
 
+        # 并行提取所有文件 (I/O 密集型 LLM API 调用，ThreadPool 即可)
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
         all_results = []
-        for fi, f in enumerate(valid_mds):
-            md = _clean(f.converted_md or "")
-            task.progress = {"stage": f"extracting file {fi + 1}/{len(valid_mds)}: {f.filename}", "pct": 20 + 35 * fi // len(valid_mds)}
-            db.commit()
-            try:
-                single = extract_ontology(md, prompt_content, config_dict, model_name)
-                if isinstance(single, dict):
-                    all_results.append(single)
-            except Exception:
-                continue
+        max_workers = min(4, len(valid_mds))
+        completed = 0
+
+        task.progress = {"stage": f"extracting files 0/{len(valid_mds)} (parallel ×{max_workers})", "pct": 20}
+        db.commit()
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {}
+            for f in valid_mds:
+                md = _clean(f.converted_md or "")
+                futures[executor.submit(extract_ontology, md, prompt_content, config_dict, model_name)] = f
+
+            for future in as_completed(futures):
+                f = futures[future]
+                try:
+                    single = future.result()
+                    if isinstance(single, dict):
+                        all_results.append(single)
+                except Exception:
+                    pass
+                completed += 1
+                task.progress = {"stage": f"extracting files {completed}/{len(valid_mds)} (parallel ×{max_workers})", "pct": 20 + 35 * completed // len(valid_mds)}
+                db.commit()
 
         if all_results:
             result = _merge_extraction_results(all_results)
