@@ -6,6 +6,11 @@ celery_app = Celery("ontoprompt", broker=settings.redis_url, backend=settings.re
 celery_app.conf.task_publish_retry = False
 celery_app.conf.broker_connection_timeout = 3
 
+# 确保 Celery worker 在 fork 前加载所有模型映射, 避免子进程缺少模型注册
+from app.models import (  # noqa: E402, F401
+    user, ontology, file, prompt, model_config,
+    entity, logic as logic_model, action, relation, extraction_task, rules_config,
+)
 
 # ── Extraction results merge (方案A) ───────────────────────────────────────
 def _merge_extraction_results(results: list[dict]) -> dict:
