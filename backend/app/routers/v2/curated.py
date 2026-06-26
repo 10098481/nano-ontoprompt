@@ -172,6 +172,18 @@ def submit_review(
         ds_v2 = db.query(Dataset).filter(Dataset.id == dataset_id, Dataset.kind == "curated").first()
         if not ds_v2:
             raise HTTPException(404, "Curated dataset not found")
+        # Pipeline creates curated data in v2_datasets, but CuratedReview FK points to
+        # v2_curated_datasets. If the CuratedDataset row doesn't exist yet, sync it now
+        # so the FK constraint doesn't fail on PostgreSQL (SQLite silently ignores FK).
+        ds = CuratedDataset(
+            id=ds_v2.id,
+            name=ds_v2.name,
+            pipeline_id=getattr(ds_v2, "pipeline_id", None),
+            schema_json=ds_v2.schema_json,
+            status="draft",
+        )
+        db.add(ds)
+        db.flush()
 
     from datetime import datetime, timezone
     review = CuratedReview(
