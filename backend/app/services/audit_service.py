@@ -317,7 +317,7 @@ def _call_openai_with_tools(api_key: str, api_base: str | None, model_name: str,
                 "content": turn["content"],
             })
         elif turn["role"] == "assistant_tool_call":
-            messages.append({
+            msg = {
                 "role": "assistant",
                 "content": None,
                 "tool_calls": [{
@@ -328,7 +328,10 @@ def _call_openai_with_tools(api_key: str, api_base: str | None, model_name: str,
                         "arguments": json.dumps(turn["tool_args"]),
                     },
                 }],
-            })
+            }
+            if turn.get("reasoning_content"):
+                msg["reasoning_content"] = turn["reasoning_content"]
+            messages.append(msg)
         else:
             messages.append({"role": turn["role"], "content": turn["content"]})
 
@@ -342,6 +345,14 @@ def _call_openai_with_tools(api_key: str, api_base: str | None, model_name: str,
     )
 
     choice = resp.choices[0]
+
+    # Extract reasoning_content if present (DeepSeek thinking mode etc.)
+    reasoning_content = None
+    if hasattr(choice.message, 'reasoning_content'):
+        reasoning_content = choice.message.reasoning_content
+    elif choice.message.model_extra and 'reasoning_content' in choice.message.model_extra:
+        reasoning_content = choice.message.model_extra['reasoning_content']
+
     if choice.finish_reason == "tool_calls" and choice.message.tool_calls:
         tc = choice.message.tool_calls[0]
         try:
@@ -354,9 +365,10 @@ def _call_openai_with_tools(api_key: str, api_base: str | None, model_name: str,
             "tool_args": args,
             "tool_call_id": tc.id,
             "thought": choice.message.content or "",
+            "reasoning_content": reasoning_content,
         }
 
-    return {"type": "text", "content": choice.message.content or ""}
+    return {"type": "text", "content": choice.message.content or "", "reasoning_content": reasoning_content}
 
 
 def _call_anthropic_with_tools(api_key: str, model_name: str,
@@ -494,6 +506,8 @@ def run_react_audit(
                 "tool_args": tool_args,
                 "tool_call_id": tool_call_id,
                 "thought": thought,
+                "reasoning_content": response.get("reasoning_content"),
+
             })
             turns.append({
                 "role": "tool_result",
